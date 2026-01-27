@@ -6,6 +6,7 @@
         "editor.tabSize": 2
     },
     "breadcrumbs.enabled": false,
+    "diffEditor.ignoreTrimWhitespace": false,
     "editor.autoIndent": "full",
     "editor.detectIndentation": false,
     "editor.formatOnSave": true,
@@ -81,5 +82,8 @@
     "git-log--graph.hide-quick-branch-tips": false,
     "git-log--graph.hide-sidebar-buttons": false,
     "git-log--graph.position": "editor",
-    "git-log--graph.show-inferred-quick-branch-tips": true
+    "git-log--graph.show-inferred-quick-branch-tips": true,
+    "workbench.colorCustomizations": {
+        "editorWhitespace.foreground": "#202020"
+    }
 }

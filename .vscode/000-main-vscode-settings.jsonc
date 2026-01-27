@@ -2,5 +2,9 @@
 //   - https://code.visualstudio.com/docs/configure/settings#_workspace-settings
 {
     // Override theme.
-    "workbench.colorTheme": "Pwsh Darker"
+    "workbench.colorTheme": "Pwsh Darker",
+    // Override render whitespace color.
+    "workbench.colorCustomizations": {
+        "editorWhitespace.foreground": "#202020"
+    }
 }
