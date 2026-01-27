@@ -55,5 +55,8 @@
     "terminal.integrated.hideOnStartup": "never",
     "terminal.integrated.tabs.hideCondition": "never",
     //  - Switch between terminals in terminals tab with a single click.
-    "terminal.integrated.tabs.focusMode": "singleClick"
+    "terminal.integrated.tabs.focusMode": "singleClick",
+    // Visual Studio Code integrated diff editor configuration:
+    //   - Do not ignore leading or trailing whitespace changes.
+    "diffEditor.ignoreTrimWhitespace": false
 }
