@@ -1,119 +1,240 @@
 <#
 .SYNOPSIS
-    Management script based on PowerShell, this script must be executed from the root directory.
+    Bootstrap management script for Windows PowerShell (v5.1) and PowerShell Core kind of terminals.
+    
+    Do not edit manually — changes will be overwritten.
 #>
 
 # [Initializations] ####################################################################################################
-param (
-    # Command to execute, one of:
-    #    'load': Host/Container command, loads the Powershell modules in the terminal for more granular access.
-    #    'clean': Host/Container command, recursively cleans the repository and submodules with Git.
-    #    'build': Host command, builds the images and the development containers.
-    #    'run': Host command creates or uses an existing development container and starts it in the current folder.
-    [Parameter(Mandatory = $true)]
-    [ValidateSet("load", "clean", "build", "run")]
-    [String]
-    $Command
-)
+param ()
 
 # Stop on first error found.
 $ErrorActionPreference = "Stop";
-
-# Imports.
-Import-Module "$PSScriptRoot/modules/commons.psm1";
-Import-Module "$PSScriptRoot/modules/devcontainers.psm1"
+# Do not show progress bars.
+$ProgressPreference = 'SilentlyContinue';
 
 # [Declarations] #######################################################################################################
-# Path to 'devcontainer.json' file.
-$DEVCONTAINER_FILE = ".devcontainer/devcontainer.json"; 
-# Project name for the Docker compose project.
-$DEVCONTAINER_PROJECT_NAME = "powershell_scripts";
+# Minimum PowerShell Core version.
+$PWSH_VERSION_MIN = "7.4.3";
+# Major version of the minimum PowerShell Core version.
+$PWSH_VERSION_MAJOR_MIN = [int](($PWSH_VERSION_MIN -Split '\.')[0]);
+# Minor version number of the minimum PowerShell Core version.
+$PWSH_VERSION_MINOR_MIN = [int](($PWSH_VERSION_MIN -Split '\.')[1]);
+# Path to the PowerShell Core management environment directory.
+$PWSH_MANAGE_ENV_DIR = Join-Path -Path "." -ChildPath ".manage_env";
+# Path to the PowerShell Core main management script where to delegate the logic past the bootstrap phase.
+$PWSH_MANAGE_MAIN_SCRIPT = Join-Path -Path "." -ChildPath "manage.main.ps1";
+
+# Path to the system PowerShell Core executable.
+$PWSH_SYSTEM_EXE = if ($ENV:PWSH_SYSTEM_EXE) { $ENV:PWSH_SYSTEM_EXE; } else { "pwsh"; };
+# Path to the local PowerShell Core directory.
+$PWSH_LOCAL_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "pwsh-local-bootstrap-ps1";
+# Path to the local PowerShell Core executable.
+$PWSH_LOCAL_EXE = Join-Path -Path "$PWSH_LOCAL_DIR" -ChildPath "pwsh";
 
 # [Internal Functions] #################################################################################################
+function Test-SystemPwsh
+{
+    <#
+    .DESCRIPTION
+        Determines if the system PowerShell Core is available.
+
+    .OUTPUTS
+        True if the system PowerShell Core is available and ready for use and false if otherwise.
+    #>
+    param()
+
+    try
+    {
+        # Get the current major version number of the system PowerShell Core available, and check against minimum.
+        $cMajor= & "$PWSH_SYSTEM_EXE" -NoLogo -Command '$PSVersionTable.PSVersion.Major.ToString()' 2>$null;
+        if ($cMajor -ge $PWSH_VERSION_MAJOR_MIN)
+        {
+            # Get the current minor version number of the system PowerShell Core available, and check against minimum.
+            $cMinor= & "$PWSH_SYSTEM_EXE" -NoLogo -Command '$PSVersionTable.PSVersion.Minor.ToString()' 2>$null;
+            if ($cMinor -ge $PWSH_VERSION_MINOR_MIN)
+            {
+                 return $true;
+            }
+        }
+    }
+    catch {}
+
+    # Command failed to execute or version did not match.
+    return $false;
+}
+
+function Test-LocalPwsh
+{
+    <#
+    .DESCRIPTION
+        Determines if the local PowerShell Core is available.
+
+    .OUTPUTS
+        True if the local PowerShell Core is available and ready for use and false if otherwise.
+    #>
+    param()
+
+    # Ensure local PowerShell Core directory exists.
+    if (-Not (Test-Path -Path "$PWSH_LOCAL_DIR"))
+    {
+        return $false;
+    }
+    
+    try
+    {
+        # Get the current major version number of the local PowerShell Core available, and check against minimum.
+        $cMajor= & "$PWSH_LOCAL_EXE" -NoLogo -Command '$PSVersionTable.PSVersion.Major.ToString()' 2>$null;
+        if ($cMajor -ge $PWSH_VERSION_MAJOR_MIN)
+        {
+            # Get the current minor version number of the local PowerShell Core available, and check against minimum.
+            $cMinor= & "$PWSH_LOCAL_EXE" -NoLogo -Command '$PSVersionTable.PSVersion.Minor.ToString()' 2>$null;
+            if ($cMinor -ge $PWSH_VERSION_MINOR_MIN)
+            {
+                 return $true;
+            }
+        }
+    }
+    catch {}
+
+    # Command failed to execute or version did not match.
+    return $false;
+}
+
+function Install-LocalPwsh
+{
+    <#
+    .DESCRIPTION
+        Installs the local PowerShell Core if not already installed.
+    #>
+    param()
+
+    # Check if local PowerShell Core is already installed, and in that case do nothing.
+    if (Test-LocalPwsh)
+    {
+        return;
+    }
+    
+    # Log start of installation.
+    Write-Host "Installing local PowerShell Core v$PWSH_VERSION_MIN at '$PWSH_LOCAL_DIR'...";
+    
+    # Ensure the local folder is removed and created anew.
+    Remove-Item -Path "$PWSH_LOCAL_DIR" -Force -Recurse -ErrorAction SilentlyContinue;
+    New-Item -Path "$PWSH_LOCAL_DIR" -ItemType Directory -Force | Out-Null;
+    
+    # Download the local PowerShell Core file and install it in the folder.
+    $outputFilePath = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "local-pwsh-install-file-ps1";
+    $downloadPath = "https://github.com/PowerShell/PowerShell/releases/download/v$PWSH_VERSION_MIN";
+    try
+    {
+        # Determine if running system PowerShell Core in Linux, for details refer to:
+        #   - https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_automatic_variables?view=powershell-7.5#islinux
+        if ($IsLinux)
+        {
+            # Set correct variables for Linux.
+            $downloadPath = "$downloadPath/powershell-$PWSH_VERSION_MIN-linux-x64.tar.gz";
+            $outputFilePath = "$outputFilePath.tar.gz";
+
+            # Download from the official releases site.
+            Write-Host "Downloading Linux local PowerShell from '$downloadPath'...";
+            Invoke-WebRequest -Uri "$downloadPath" -OutFile "$outputFilePath";
+
+            # Untar and install.
+            Write-Host "Untarring local PowerShell to '$PWSH_LOCAL_DIR'...";
+            tar -xzf "$outputFilePath" -C "$PWSH_LOCAL_DIR";
+        }
+        # Determine if running system PowerShell Core in MacOS, for details refer to:
+        #   - https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_automatic_variables?view=powershell-7.5#ismacos
+        elseif ($IsMacOS)
+        {
+            # Set correct variables for MacOS.
+            $downloadPath = "$downloadPath/powershell-$PWSH_VERSION_MIN-osx-x64.tar.gz";
+            $outputFilePath = "$outputFilePath.tar.gz";
+
+            # Download from the official releases site.
+            Write-Host "Downloading MacOS local PowerShell from '$downloadPath'...";
+            Invoke-WebRequest -Uri "$downloadPath" -OutFile "$outputFilePath";
+
+            # Untar and install.
+            Write-Host "Untarring local PowerShell to '$PWSH_LOCAL_DIR'...";
+            tar -xzf "$outputFilePath" -C "$PWSH_LOCAL_DIR";
+        }
+        # Determine if running built-in Windows PowerShell (v5.1) or PowerShell Core in Windows, for details refer to:
+        #   - https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_powershell_editions?view=powershell-7.5#long-description
+        #   - https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_automatic_variables?view=powershell-7.5#iswindows
+        elseif (($PSVersionTable.PSEdition -eq "Desktop") -or ($IsWindows))
+        {
+            # Set correct variables for Windows.
+            $downloadPath = "$downloadPath/PowerShell-$PWSH_VERSION_MIN-win-x64.zip";
+            $outputFilePath = "$outputFilePath.zip";
+
+            # Download from the official releases site.
+            Write-Host "Downloading Windows local PowerShell from '$downloadPath'...";
+            Invoke-WebRequest -Uri "$downloadPath" -OutFile "$outputFilePath";
+
+            # Unzip and install.
+            Write-Host "Unzipping local PowerShell to '$PWSH_LOCAL_DIR'...";
+            Expand-Archive -Path "$outputFilePath" -DestinationPath "$PWSH_LOCAL_DIR" -Force;
+        }
+        else
+        {
+            throw "Could not determine platform for local PowerShell Core installation.";
+        }
+    }
+    finally
+    {
+        Remove-Item -Path "$outputFilePath" -Force -ErrorAction SilentlyContinue;
+    }
+    
+    # Ensure installation completed successfully.
+    if (-Not (Test-LocalPwsh))
+    {
+        throw "Installation of local PowerShell Core failed."
+    }
+    
+    # Report success in installation.
+    Write-Host "Installed local PowerShell Core at '$PWSH_LOCAL_DIR'.";
+}
 
 # [Functions] ##########################################################################################################
 
 # [Execution] ##########################################################################################################
 # Ensure the current location is the location of the script.
-if (((Get-Item "$PSScriptRoot").Hashcode) -ne ((Get-Item "$PWD").Hashcode))
+if (((Resolve-Path "$PSScriptRoot").Path) -ne ((Resolve-Path "$PWD").Path))
 {
     throw "The script must run from the root directory, where this script is located."
 }
 
-if ($Command -eq "load")
+# Ensure main management script is available.
+if (-Not (Test-Path -Path "$PWSH_MANAGE_MAIN_SCRIPT"))
 {
-    # The modules have already been imported due to the imports above, perform no other action.
-    Write-Log "Modules imported." "Success";
-}
-elseif ($Command -eq "clean")
-{
-    Write-Log "Cleaning repository and submodules...";
-    git clean -d -fx -f;
-    git submodule foreach --recursive git clean -d -fx -f;
-    Write-Log "Repository and submodules cleaned." "Success";
-}
-elseif ($Command -eq "build")
-{
-    # Build inputs for the development container.
-    $inputs = @{};
-
-    # Build outputs for the development container.
-    $outputs = @{};
-
-    Initialize-DevContainer -DevcontainerFile "$DEVCONTAINER_FILE" -ProjectName "$DEVCONTAINER_PROJECT_NAME" `
-        -Inputs $inputs -Outputs $outputs;
-}
-elseif ($Command -eq "run")
-{
-    # Artifacts to copy in the workspace for the initialization script.
-    $inputs = @{
-        # This is the host path to Git authentication key.
-        # 
-        # This can't be provided as a secret in the Compose file as it needs specific permissions for it to be
-        # trusted by the SSH utilities, and Compose does not do that, thus we copy it here and set the permissions
-        # explicitly from the initialization script.
-        "Git Authentication Key" = @{
-            "hostPath" = "../!local/other-files/github/dmg0345-authentication-key/private-authentication-key.pem";
-        };
-
-        # This is the host path to Git signing key to sign commits.
-        # 
-        # This can't be provided as a secret in the Compose file as it needs specific permissions for it to be
-        # trusted by the SSH utilities, and Compose does not do that, thus we copy it here and set the permissions
-        # explicitly from the initialization script.
-        "Git Signing Key" = @{
-            "hostPath" = "../!local/other-files/github/dmg0345-signing-key/private-signing-key.pem";
-        };
-    };
-    
-    # Create initialization script for the volume of the development container.
-    $initScript = @'
-# Configure Git for user.
-git config --global user.name "$ENV:GITHUB_USERNAME";
-git config --global user.email "$ENV:GITHUB_EMAIL";
-git config --global user.signingkey "/vol_store/private-signing-key.pem";
-git config --global core.sshCommand "ssh -i '/vol_store/private-authentication-key.pem' -o 'IdentitiesOnly yes'";
-
-# Own and set permissions of the keys to read/write for SSH to use them.
-Get-ChildItem -Path "/vol_store" -Include "*.pem" -Recurse | ForEach-Object -Process `
-{
-    chown $(id -u -n) "$($_.FullName)";
-    chmod 600 "$($_.FullName)";
+    throw "No main management script available at '$PWSH_MANAGE_MAIN_SCRIPT'.";
 }
 
-# Trust Github for SSH connections.
-if (-not (Test-Path "~/.ssh/known_hosts")) { New-Item -Path "~/.ssh/known_hosts" -ItemType File -Force | Out-Null; }
-Set-Content -Path "~/.ssh/known_hosts" -Value "$(ssh-keyscan github.com)" -Force;
+# Ensure the management environment directory exists.
+New-Item -Path "$PWSH_MANAGE_ENV_DIR" -ItemType Directory -Force | Out-Null;
 
-# Clone repository in the workspace folder.
-git clone --recurse-submodules --branch develop "git@github.com:dmg0345/powershell.git" ".";
-if ($LASTEXITCODE -ne 0) { throw "Failed to clone repository." }
-'@;
-
-    Start-DevContainer -DevcontainerFile "$DEVCONTAINER_FILE" -ProjectName "$DEVCONTAINER_PROJECT_NAME" `
-        -VolumeInitScript $initScript -Inputs $inputs;
+# Determine if using system PowerShell Core or local PowerShell core.
+if (Test-SystemPwsh)
+{
+    $pwshPath = "$PWSH_SYSTEM_EXE";
 }
 else
 {
-    throw "Command '$Command' is not recognized or an invalid combination of arguments was provided.";
+    # Ensure local PowerShell Core is installed.
+    Install-LocalPwsh;
+
+    $pwshPath = "$PWSH_LOCAL_EXE";
+}
+
+# Determine if arguments were passed or not.
+if ($args.Length -eq 0)
+{
+    # Start an interactive PowerShell Core shell without calling the main management script.
+    & "$pwshPath" -NoExit -NoLogo -Interactive -File "$PWSH_MANAGE_MAIN_SCRIPT" -Command "pwsh-load";
+}
+else
+{
+    # Delegate execution of main management script to PowerShell Core and exit with its error code.
+    & "$pwshPath" -File "$PWSH_MANAGE_MAIN_SCRIPT" @args;
 }

@@ -1,0 +1,15 @@
+# Mousepad Configuration File, for details refer to:
+#   - https://gitlab.xfce.org/apps/mousepad/-/blob/mousepad-0.6.3/mousepad/org.xfce.mousepad.gschema.xml?ref_type=tags
+
+[org/xfce/mousepad/preferences/view]
+#color-scheme='oblivion'
+show-whitespace=true
+tab-width=uint32 4
+insert-spaces=true
+show-line-numbers=true
+match-braces=true
+
+[org/xfce/mousepad/preferences/window]
+always-show-tabs=true
+opening-mode='window'
+statusbar-visible=true

@@ -1,0 +1,30 @@
+# IceWM Programs Configuration File, for details, refer to: 
+#   - https://ice-wm.org/man/icewm-programs
+
+menu "Core Apps" folder {
+    prog "Xfce4-terminal Terminal" xfce-terminal bash -c 'exec xfce4-terminal --default-working-directory="${HOME}"'
+    prog "Thunar File Manager" system-file-manager bash -c 'exec thunar "${HOME}"'
+    prog "Mousepad Text Editor" text-editor bash -c 'exec mousepad'
+}
+
+# Allow to load extra menu items dynamically from files.
+include "/usr/share/icewm/00-programs-extra"
+include "/usr/share/icewm/01-programs-extra"
+include "/usr/share/icewm/02-programs-extra"
+include "/usr/share/icewm/03-programs-extra"
+include "/usr/share/icewm/04-programs-extra"
+include "/usr/share/icewm/05-programs-extra"
+include "/usr/share/icewm/06-programs-extra"
+include "/usr/share/icewm/07-programs-extra"
+include "/usr/share/icewm/08-programs-extra"
+include "/usr/share/icewm/09-programs-extra"
+include "/usr/share/icewm/10-programs-extra"
+include "/usr/share/icewm/11-programs-extra"
+include "/usr/share/icewm/12-programs-extra"
+include "/usr/share/icewm/13-programs-extra"
+include "/usr/share/icewm/14-programs-extra"
+include "/usr/share/icewm/15-programs-extra"
+include "/usr/share/icewm/16-programs-extra"
+include "/usr/share/icewm/17-programs-extra"
+include "/usr/share/icewm/18-programs-extra"
+include "/usr/share/icewm/19-programs-extra"

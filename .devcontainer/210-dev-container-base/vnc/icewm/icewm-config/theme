@@ -1,0 +1,4 @@
+# IceWM Theme Configuration File, for details, refer to: 
+#   - https://ice-wm.org/man/icewm-theme
+
+Theme="Spoof/default.theme"

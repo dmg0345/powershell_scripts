@@ -1,0 +1,40 @@
+# Main Docker Compose File, for details, refer to: 
+#   - https://docs.docker.com/compose/compose-file/
+
+## Extensions ##########################################################################################################
+
+## Services ############################################################################################################
+services:
+  dev-container: !override
+    <<: *service-dev-container-vscode-base
+    environment:
+      <<:
+        - <<: *service-environment-git
+        - <<: *service-environment-github
+        - <<: *service-environment-vnc-server
+        - <<: *service-environment-dev-container-volume
+    secrets:
+      - <<: *service-secrets-git-ssh-sign-key-file
+      - <<: *service-secrets-github-ssh-auth-key-file
+    ports:
+      - <<: *service-ports-vnc-server
+    volumes:
+      - <<: *service-volumes-dev-container
+
+## Volumes #############################################################################################################
+volumes:
+  <<:
+    - <<: *volumes-dev-container
+
+## Configs #############################################################################################################
+
+## Secrets #############################################################################################################
+secrets:
+  <<:
+    - <<: *secrets-git
+    - <<: *secrets-github
+
+## Networks ############################################################################################################
+networks:
+  <<:
+    - <<: *networks-dev-container

@@ -1,0 +1,6 @@
+// Visual Studio Code common settings file, for details refer to:
+//   - https://code.visualstudio.com/docs/configure/settings#_workspace-settings
+{
+    // Override theme.
+    "workbench.colorTheme": "Pwsh Darker"
+}

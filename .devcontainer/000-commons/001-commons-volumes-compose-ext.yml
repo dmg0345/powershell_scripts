@@ -1,0 +1,13 @@
+# Commons for Volumes Docker Compose Extensions File, for details, refer to: 
+#   - https://docs.docker.com/compose/compose-file/
+#   - https://docs.docker.com/reference/compose-file/extension/#example-4 (note on YAML merge with sequences, not possible)
+#   - https://yaml.org/type/merge.html (note on YAML merge ignoring keys that already exist, they are not merged)
+#   - https://github.com/docker/compose/issues/9648 (secrets/configs uid, gid and mode can't be changed from Compose)
+#   - https://docs.docker.com/engine/network/drivers/ (driver option in networks)
+# Do not edit manually — changes will be overwritten.
+
+# Dev Container volume for '/volumes' map.
+x-volumes-dev-container: &volumes-dev-container !override
+  dev-container:
+    name: ${COMPOSE_PROJECT_NAME}-dev-container
+    external: false # Ensure lifecycle is handled by compose.

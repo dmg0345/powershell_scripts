@@ -1,0 +1,9 @@
+# Visual Studio Code Docker Compose Extensions File, for details, refer to: 
+#   - https://docs.docker.com/compose/compose-file/
+# Do not edit manually — changes will be overwritten.
+
+# Base Visual Studio Code Dev Container service for '/services/<service>' map.
+x-service-dev-container-vscode-base: &service-dev-container-vscode-base !override
+  <<: [*service-dev-container-base]
+  container_name: ${COMPOSE_PROJECT_NAME}-dev-container-vscode
+  image: ${BAKE_IMAGE_LOCAL_REGISTRY}/${COMPOSE_PROJECT_NAME}-dev-container-vscode:latest

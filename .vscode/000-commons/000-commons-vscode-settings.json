@@ -1,0 +1,57 @@
+// Visual Studio Code common settings file, for details refer to:
+//   - https://code.visualstudio.com/docs/configure/settings#_workspace-settings
+// Do not edit manually — changes will be overwritten.
+{
+    // Visual Studio Code Workbench / Editor / Explorer configuration:
+    //  - Default theme.
+    "workbench.colorTheme": "Default Dark Modern",
+    //   - Render all whitespace as dots.
+    "editor.renderWhitespace": "all",
+    //   - Do not auto indent, let formatters handle the indentation.
+    "editor.autoIndent": "none",
+    //   - Disable minimap, sticky scroll and breadcrumb navigation.
+    "editor.minimap.enabled": false,
+    "editor.stickyScroll.enabled": false,
+    "breadcrumbs.enabled": false,
+    //   - Allow format on save of file by default, except on JSON files detected with comments or with '.jsonc' file extension.
+    "editor.formatOnSave": true,
+    "[jsonc]": {
+        "editor.formatOnSave": false
+    },
+    //   - Enable intellisense suggestions everywhere except in comments.
+    "editor.quickSuggestions": {
+        "comments": "off",
+        "strings": "on"
+    },
+    //   - Do not modify explorer view navigation as files are open or closed.
+    "explorer.autoReveal": false,
+    //   - Exclude files from appearing in the explorer.
+    "files.exclude": {
+        "**/.git": true,
+        "**/__pycache__": true
+    },
+    //   - Disable automatic identation, and use fixed number of spaces.
+    "editor.detectIndentation": false,
+    "editor.insertSpaces": true,
+    "[*]": {
+         "editor.tabSize": 4
+     },
+    "[yaml]": {
+        "editor.tabSize": 2
+    },
+
+    // Visual Studio Code integrated terminal configuration:
+    //  - Allow terminals with lots of scrollback.
+    "terminal.integrated.scrollback": 10000000,
+    //  - Do not set any locale environment variables, they will already exist in environment.
+    "terminal.integrated.detectLocale": "off",
+    //  - Disable persistent sessions and sticky scroll.
+    "terminal.integrated.enablePersistentSessions": false,
+    "terminal.integrated.stickyScroll.enabled": false,
+    //  - Always show terminal and terminal tabs view.
+    "terminal.integrated.hideOnLastClosed": false,
+    "terminal.integrated.hideOnStartup": "never",
+    "terminal.integrated.tabs.hideCondition": "never",
+    //  - Switch between terminals in terminals tab with a single click.
+    "terminal.integrated.tabs.focusMode": "singleClick"
+}

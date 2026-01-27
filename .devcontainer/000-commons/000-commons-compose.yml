@@ -1,0 +1,11 @@
+# Commons Docker Compose File, for details, refer to: 
+#   - https://docs.docker.com/compose/compose-file/
+#   - https://docs.docker.com/reference/compose-file/extension/#example-4 (note on YAML merge with sequences, not possible)
+#   - https://yaml.org/type/merge.html (note on YAML merge ignoring keys that already exist, they are not merged)
+#   - https://github.com/docker/compose/issues/9648 (secrets/configs uid, gid and mode can't be changed from Compose)
+#   - https://docs.docker.com/engine/network/drivers/ (driver option in networks)
+#   - Docker Compose, when merging files, can concatenate elements in sequences, resulting in duplicates,
+#     use '!override' in 'x-' blocks to avoid this, e.g., 'x-extension-block: &extension-block !override'.
+# Do not edit manually — changes will be overwritten.
+
+name: ${COMPOSE_PROJECT_NAME:?No 'COMPOSE_PROJECT_NAME' variable found in environment}

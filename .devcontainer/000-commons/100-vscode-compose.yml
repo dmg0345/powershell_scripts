@@ -1,0 +1,19 @@
+# Visual Studio Code Docker Compose File, for details, refer to: 
+#   - https://docs.docker.com/compose/compose-file/
+# Do not edit manually — changes will be overwritten.
+
+## Extensions ##########################################################################################################
+
+## Services ############################################################################################################
+# Sentinel definition of 'dev-container' service for 'devcontainer.json', must be '!override' in project files.
+services:
+  dev-container:
+    image: ERROR-DEV-CONTAINER-SERVICE/NOT-OVERRIDEN-OR-NOT-STARTED:PROJECT-FILES
+
+## Volumes #############################################################################################################
+
+## Configs #############################################################################################################
+
+## Secrets #############################################################################################################
+
+## Networks ############################################################################################################

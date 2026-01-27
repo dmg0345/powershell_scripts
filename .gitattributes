@@ -1,0 +1,8 @@
+# Set the default behaviour.
+* text=auto
+
+# Files to explicitly be normalized and converted to explicit line endings on checkout.
+**/*.sh text eol=lf
+**/icewm/** eol=lf
+
+# Symbolic links, this must be last.

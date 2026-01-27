@@ -1,0 +1,83 @@
+# Commons for Services Docker Compose Extensions File, for details, refer to: 
+#   - https://docs.docker.com/compose/compose-file/
+# Do not edit manually — changes will be overwritten.
+
+# Dev Container volume environment variables for '/services/<service>/environment' map.
+x-service-environment-dev-container-volume: &service-environment-dev-container-volume !override
+  DEV_CONTAINER_VOLUME_DIR: /dev-container-volume
+
+# Git environment variables for '/services/<service>/environment' map.
+x-service-environment-git: &service-environment-git !override
+  GIT_USERNAME: ${GIT_USERNAME}
+  GIT_EMAIL: ${GIT_EMAIL}
+  GIT_SSH_SIGN_KEY_FILE: /run/secrets/git-ssh-sign-key-file
+
+# Github environment variables for '/services/<service>/environment' map.
+x-service-environment-github: &service-environment-github !override
+  GITHUB_USERNAME: ${GITHUB_USERNAME}
+  GITHUB_SSH_AUTH_KEY_FILE: /run/secrets/github-ssh-auth-key-file
+
+# VNC server environment variables for '/services/<service>/environment' map.
+x-service-environment-vnc-server: &service-environment-vnc-server !override
+  VNC_SERVER_DISPLAY: ":1" # Use fixed value for simplicity, so that we expose a fixed port always.
+  VNC_SERVER_PASSWORD: ${VNC_SERVER_PASSWORD} # Not really a secret, pass as environment variable for convenience.
+  VNC_SERVER_GEOMETRY: ${VNC_SERVER_GEOMETRY}
+
+# Dev Container 'devuser:devusers' ownership and R/W owner permissions for '/services/<service>/secrets'.
+# NOTE: These settings might not be applied depending on environment, kept for information purposes anyway.
+x-service-secrets-devuser-key: &service-secrets-devuser-key !override
+  uid: "1000"
+  gid: "1000"
+  mode: 0600
+
+# Git single secret for '/services/<service>/secrets' sequence.
+x-service-secrets-git-ssh-sign-key-file: &service-secrets-git-ssh-sign-key-file !override
+  <<: [*service-secrets-devuser-key]
+  source: git-ssh-sign-key-file
+  target: /run/secrets/git-ssh-sign-key-file
+
+# Github single secret for '/services/<service>/secrets' sequence.
+x-service-secrets-github-ssh-auth-key-file: &service-secrets-github-ssh-auth-key-file !override
+  <<: [*service-secrets-devuser-key]
+  source: github-ssh-auth-key-file
+  target: /run/secrets/github-ssh-auth-key-file
+
+# VNC server ports for '/services/<service>/ports' sequence.
+x-service-ports-vnc-server: &service-ports-vnc-server !override
+  name: ${COMPOSE_PROJECT_NAME}-vnc-server
+  target: 5901 # Use fixed value for simplicity, so that we expose a fixed port always.
+  published: 5901 # Use fixed value for simplicity, so that we expose a fixed port always.
+  host_ip: 127.0.0.1
+  protocol: tcp
+
+# Default network for '/services/<service>/networks' sequence.
+x-service-networks-default: &service-networks-default !override
+  default
+
+# Dev Container network for '/services/<service>/networks' sequence.
+x-service-networks-dev-container: &service-networks-dev-container !override
+  dev-container
+
+# Dev Container volume for '/services/<service>/volumes' sequence.
+x-service-volumes-dev-container: &service-volumes-dev-container !override
+  type: volume
+  source: dev-container
+  target: /dev-container-volume # Fixed path where to mount the volume in the container.
+  read_only: false # Allow read and write access to the volume from the container.
+  volume: 
+    nocopy: true # On mount, do not initialize volume from container data, initialize volume directly.
+
+# Base service for '/services/<service>' map.
+x-service-base: &service-base !override
+  container_name: ${COMPOSE_PROJECT_NAME}-container
+  pull_policy: missing # Always try to pull images if not available and never attempt to build them by default.
+  networks:
+    - *service-networks-default # Provide a controlled network stack, rather than none at all, by default.
+
+# Base Dev Container service for '/services/<service>' map.
+x-service-dev-container-base: &service-dev-container-base !override
+  <<: [*service-base]
+  container_name: ${COMPOSE_PROJECT_NAME}-dev-container
+  pull_policy: never # Dev Container image is never pushed, do not attempt to pull as will always fail.
+  networks:
+    - *service-networks-dev-container

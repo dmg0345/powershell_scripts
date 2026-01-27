@@ -1,0 +1,17 @@
+// Visual Studio Code extension 'phil294.git-log--graph' settings file, for details refer to:
+//   - https://marketplace.visualstudio.com/items?itemName=phil294.git-log--graph
+// Do not edit manually — changes will be overwritten.
+{
+    // Expect 'git' executable to exist in PATH environment variable.
+    "git-log--graph.git-path": "git",
+    // Expect tool to exist in the editor itself, so that we have real state to display the full log.
+    "git-log--graph.position": "editor",
+    // Disable this as it can have performance issues.
+    "git-log--graph.disable-commit-stats": true,
+    // Disable preliminary loading to avoid inconsistencies.
+    "git-log--graph.disable-preliminary-loading": true,
+    // Do not hide action buttons or related information.
+    "git-log--graph.hide-quick-branch-tips": false,
+    "git-log--graph.hide-sidebar-buttons": false,
+    "git-log--graph.show-inferred-quick-branch-tips": true
+}

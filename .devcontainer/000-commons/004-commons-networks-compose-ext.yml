@@ -1,0 +1,20 @@
+# Commons for Networks Docker Compose Extensions File, for details, refer to: 
+#   - https://docs.docker.com/compose/compose-file/
+# Do not edit manually — changes will be overwritten.
+
+# Default network for '/networks' map.
+x-networks-default: &networks-default !override
+  default: # Almost always created, thus give it a explicit scoped name.
+    name: ${COMPOSE_PROJECT_NAME}-default
+    driver: bridge # Keep a network stack in default network rather than none at all.
+    external: false # Ensure lifecycle is handled by Compose.
+    internal: true # Keep host and internet access unusable outside this network.
+
+# Dev Container network for '/networks' map.
+x-networks-dev-container: &networks-dev-container !override
+  dev-container:
+    name: ${COMPOSE_PROJECT_NAME}-dev-container
+    driver: bridge # Ensure Host network stack is not used.
+    attachable: true # Allow external containers outside Compose to attach.
+    external: false # Ensure lifecycle is handled by Compose.
+    internal: false # Ensure Dev Container has host and internet access.

@@ -1,0 +1,11 @@
+// Visual Studio Code extension 'github.vscode-github-actions' settings file, for details refer to:
+//   - https://marketplace.visualstudio.com/items?itemName=GitHub.vscode-github-actions
+// Do not edit manually — changes will be overwritten.
+{
+    // Keep the usage of the extension for intellisense only.
+    "github-actions.remote-name": "no-remote-ie-not-used",
+    "github-actions.use-enterprise": false,
+    "github-actions.workflows.pinned.refresh.enabled": false,
+    "github-actions.workflows.pinned.refresh.interval": 10000000000,
+    "github-actions.workflows.pinned.workflows": []
+}

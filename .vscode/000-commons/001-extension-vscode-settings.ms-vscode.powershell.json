@@ -1,0 +1,46 @@
+// Visual Studio Code extension 'ms-vscode.powershell' settings file, for details refer to:
+//   - https://marketplace.visualstudio.com/items?itemName=ms-vscode.PowerShell
+// Do not edit manually — changes will be overwritten.
+{
+    // Enable automatic start when opening a file and linter at workspace level.
+    "powershell.startAutomatically": true,
+    "powershell.scriptAnalysis.enable": true,
+    "powershell.analyzeOpenDocumentsOnly": false,
+    // Disable run buttons, code folding, prompts and panels.
+    "powershell.buttons.showRunButtons": false,
+    "powershell.codeFolding.enable": false,
+    "powershell.promptToUpdatePowerShell": false,
+    "powershell.sideBar.CommandExplorerVisibility": false,
+    // Configure code formatting.
+    "powershell.codeFormatting.addWhitespaceAroundPipe": true,
+    "powershell.codeFormatting.alignPropertyValuePairs": false,
+    "powershell.codeFormatting.autoCorrectAliases": false,
+    "powershell.codeFormatting.avoidSemicolonsAsLineTerminators": false,
+    "powershell.codeFormatting.ignoreOneLineBlock": true,
+    "powershell.codeFormatting.newLineAfterCloseBrace": true,
+    "powershell.codeFormatting.newLineAfterOpenBrace": true,
+    "powershell.codeFormatting.openBraceOnSameLine": false,
+    "powershell.codeFormatting.pipelineIndentationStyle": "IncreaseIndentationForFirstPipeline",
+    "powershell.codeFormatting.preset": "Custom",
+    "powershell.codeFormatting.trimWhitespaceAroundPipe": false,
+    "powershell.codeFormatting.useConstantStrings": false,
+    "powershell.codeFormatting.useCorrectCasing": true,
+    "powershell.codeFormatting.whitespaceAfterSeparator": true,
+    "powershell.codeFormatting.whitespaceBeforeOpenBrace": true,
+    "powershell.codeFormatting.whitespaceBeforeOpenParen": true,
+    "powershell.codeFormatting.whitespaceBetweenParameters": false,
+    "powershell.codeFormatting.whitespaceInsideBrace": true,
+    // Ensure profiles are loaded.
+    "powershell.enableProfileLoading": true,
+    // Disable CodeLens to ensure no performance issues.
+    "powershell.enableReferencesCodeLens": false,
+    "powershell.pester.codeLens": false,
+    "powershell.pester.useLegacyCodeLens": false,
+    // Configure integrated console of extension.
+    "powershell.integratedConsole.showOnStartup": true,
+    "powershell.integratedConsole.startLocation": "Panel",
+    "powershell.integratedConsole.suppressStartupBanner": true,
+    // Ensure starting as login shells.
+    "powershell.startAsLoginShell.linux": true,
+    "powershell.startAsLoginShell.osx": true
+}
