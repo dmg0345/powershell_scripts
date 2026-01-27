@@ -7,17 +7,20 @@
     "workbench.colorTheme": "Default Dark Modern",
     //   - Render all whitespace as dots.
     "editor.renderWhitespace": "all",
-    //   - Do not auto indent, let formatters handle the indentation.
-    "editor.autoIndent": "none",
+    //   - Trim trailing whitespace, and ensure all files end with single new line.
+    "editor.trimAutoWhitespace": true,
+    "files.trimTrailingWhitespace": true,
+    "files.trimTrailingWhitespaceInRegexAndStrings": true,
+    "files.trimFinalNewlines": true,
+    "files.insertFinalNewline": true,
+    //   - Auto indent by default, some formatters might require to override this.
+    "editor.autoIndent": "full",
     //   - Disable minimap, sticky scroll and breadcrumb navigation.
     "editor.minimap.enabled": false,
     "editor.stickyScroll.enabled": false,
     "breadcrumbs.enabled": false,
-    //   - Allow format on save of file by default, except on JSON files detected with comments or with '.jsonc' file extension.
+    //   - Allow format on save of file by default.
     "editor.formatOnSave": true,
-    "[jsonc]": {
-        "editor.formatOnSave": false
-    },
     //   - Enable intellisense suggestions everywhere except in comments.
     "editor.quickSuggestions": {
         "comments": "off",
@@ -34,12 +37,11 @@
     "editor.detectIndentation": false,
     "editor.insertSpaces": true,
     "[*]": {
-         "editor.tabSize": 4
-     },
+        "editor.tabSize": 4
+    },
     "[yaml]": {
         "editor.tabSize": 2
     },
-
     // Visual Studio Code integrated terminal configuration:
     //  - Allow terminals with lots of scrollback.
     "terminal.integrated.scrollback": 10000000,
