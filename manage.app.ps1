@@ -4,7 +4,7 @@
 #>
 
 # [Initializations] ####################################################################################################
-[CmdletBinding(PositionalBinding=$false)]
+[CmdletBinding(PositionalBinding = $false)]
 param (
     [Parameter(Mandatory = $false)]
     [Alias("c")]
@@ -31,10 +31,11 @@ $ErrorActionPreference = "Stop";
 if ($Command -eq "vscode-settings-update")
 {
     # Set additional selectors for configurations.
-    $ENV:VSCODE_SETTINGS_FILE_SELECTORS=@(
+    $ENV:VSCODE_SETTINGS_FILE_SELECTORS = @(
         "ms-vscode.powershell",
         "github.vscode-github-actions",
-        "phil294.git-log--graph"
+        "phil294.git-log--graph",
+        "timonwong.shellcheck"
     ) -join ',';
     # Update settings.
     & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "vscode-settings-update";

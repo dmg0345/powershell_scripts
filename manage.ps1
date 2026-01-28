@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
     Bootstrap management script for Windows PowerShell (v5.1) and PowerShell Core kind of terminals.
-    
+
     Do not edit manually — changes will be overwritten.
 #>
 
@@ -17,9 +17,9 @@ $ProgressPreference = 'SilentlyContinue';
 # Minimum PowerShell Core version.
 $PWSH_VERSION_MIN = "7.4.3";
 # Major version of the minimum PowerShell Core version.
-$PWSH_VERSION_MAJOR_MIN = [int](($PWSH_VERSION_MIN -Split '\.')[0]);
+$PWSH_VERSION_MAJOR_MIN = [int](($PWSH_VERSION_MIN -split '\.')[0]);
 # Minor version number of the minimum PowerShell Core version.
-$PWSH_VERSION_MINOR_MIN = [int](($PWSH_VERSION_MIN -Split '\.')[1]);
+$PWSH_VERSION_MINOR_MIN = [int](($PWSH_VERSION_MIN -split '\.')[1]);
 # Path to the PowerShell Core management environment directory.
 $PWSH_MANAGE_ENV_DIR = Join-Path -Path "." -ChildPath ".manage_env";
 # Path to the PowerShell Core main management script where to delegate the logic past the bootstrap phase.
@@ -47,14 +47,14 @@ function Test-SystemPwsh
     try
     {
         # Get the current major version number of the system PowerShell Core available, and check against minimum.
-        $cMajor= & "$PWSH_SYSTEM_EXE" -NoLogo -Command '$PSVersionTable.PSVersion.Major.ToString()' 2>$null;
+        $cMajor = & "$PWSH_SYSTEM_EXE" -NoLogo -Command '$PSVersionTable.PSVersion.Major.ToString()' 2>$null;
         if ($cMajor -ge $PWSH_VERSION_MAJOR_MIN)
         {
             # Get the current minor version number of the system PowerShell Core available, and check against minimum.
-            $cMinor= & "$PWSH_SYSTEM_EXE" -NoLogo -Command '$PSVersionTable.PSVersion.Minor.ToString()' 2>$null;
+            $cMinor = & "$PWSH_SYSTEM_EXE" -NoLogo -Command '$PSVersionTable.PSVersion.Minor.ToString()' 2>$null;
             if ($cMinor -ge $PWSH_VERSION_MINOR_MIN)
             {
-                 return $true;
+                return $true;
             }
         }
     }
@@ -76,22 +76,22 @@ function Test-LocalPwsh
     param()
 
     # Ensure local PowerShell Core directory exists.
-    if (-Not (Test-Path -Path "$PWSH_LOCAL_DIR"))
+    if (-not (Test-Path -Path "$PWSH_LOCAL_DIR"))
     {
         return $false;
     }
-    
+
     try
     {
         # Get the current major version number of the local PowerShell Core available, and check against minimum.
-        $cMajor= & "$PWSH_LOCAL_EXE" -NoLogo -Command '$PSVersionTable.PSVersion.Major.ToString()' 2>$null;
+        $cMajor = & "$PWSH_LOCAL_EXE" -NoLogo -Command '$PSVersionTable.PSVersion.Major.ToString()' 2>$null;
         if ($cMajor -ge $PWSH_VERSION_MAJOR_MIN)
         {
             # Get the current minor version number of the local PowerShell Core available, and check against minimum.
-            $cMinor= & "$PWSH_LOCAL_EXE" -NoLogo -Command '$PSVersionTable.PSVersion.Minor.ToString()' 2>$null;
+            $cMinor = & "$PWSH_LOCAL_EXE" -NoLogo -Command '$PSVersionTable.PSVersion.Minor.ToString()' 2>$null;
             if ($cMinor -ge $PWSH_VERSION_MINOR_MIN)
             {
-                 return $true;
+                return $true;
             }
         }
     }
@@ -114,14 +114,14 @@ function Install-LocalPwsh
     {
         return;
     }
-    
+
     # Log start of installation.
     Write-Host "Installing local PowerShell Core v$PWSH_VERSION_MIN at '$PWSH_LOCAL_DIR'...";
-    
+
     # Ensure the local folder is removed and created anew.
     Remove-Item -Path "$PWSH_LOCAL_DIR" -Force -Recurse -ErrorAction SilentlyContinue;
     New-Item -Path "$PWSH_LOCAL_DIR" -ItemType Directory -Force | Out-Null;
-    
+
     # Download the local PowerShell Core file and install it in the folder.
     $outputFilePath = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "local-pwsh-install-file-ps1";
     $downloadPath = "https://github.com/PowerShell/PowerShell/releases/download/v$PWSH_VERSION_MIN";
@@ -185,13 +185,13 @@ function Install-LocalPwsh
     {
         Remove-Item -Path "$outputFilePath" -Force -ErrorAction SilentlyContinue;
     }
-    
+
     # Ensure installation completed successfully.
-    if (-Not (Test-LocalPwsh))
+    if (-not (Test-LocalPwsh))
     {
         throw "Installation of local PowerShell Core failed."
     }
-    
+
     # Report success in installation.
     Write-Host "Installed local PowerShell Core at '$PWSH_LOCAL_DIR'.";
 }
@@ -206,7 +206,7 @@ if (((Resolve-Path "$PSScriptRoot").Path) -ne ((Resolve-Path "$PWD").Path))
 }
 
 # Ensure main management script is available.
-if (-Not (Test-Path -Path "$PWSH_MANAGE_MAIN_SCRIPT"))
+if (-not (Test-Path -Path "$PWSH_MANAGE_MAIN_SCRIPT"))
 {
     throw "No main management script available at '$PWSH_MANAGE_MAIN_SCRIPT'.";
 }

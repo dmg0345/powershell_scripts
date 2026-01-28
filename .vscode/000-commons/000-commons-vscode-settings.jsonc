@@ -30,6 +30,7 @@
     "explorer.autoReveal": false,
     //   - Exclude files from appearing in the explorer.
     "files.exclude": {
+        "**/.manage_env": true,
         "**/.git": true,
         "**/__pycache__": true
     },

@@ -1,0 +1,15 @@
+// Visual Studio Code extension 'timonwong.shellcheck' settings file, for details refer to:
+//   - https://marketplace.visualstudio.com/items?itemName=timonwong.shellcheck
+// Do not edit manually — changes will be overwritten.
+{
+    // Enable linter on typing.
+    "shellcheck.enable": true,
+    "shellcheck.run": "onType",
+    // Use bundled shellcheck and do not prompt for updates.
+    // NOTE: Use bundled linter and unique common configuration file, as Bash scripts are not critical.
+    "shellcheck.executablePath": "",
+    "shellcheck.disableVersionCheck": true,
+    "shellcheck.customArgs": [
+        "--rcfile=${workspaceFolder}/.vscode/001-configs/000-config-shellcheck.rc"
+    ]
+}

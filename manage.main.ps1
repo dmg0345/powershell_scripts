@@ -244,7 +244,7 @@ function Install-LocalDependencies
         # Extract.
         Expand-Archive -Path "$outFile" -DestinationPath "$tmpDlsDir";
         # Install as local dependency.
-        Move-Item -Path "$(Join-Path -Path "$tmpDlsDir" -ChildPath "yq.exe")" -Destination "$($ENV:YQ_EXE).exe" -Force;
+        Move-Item -Path "$(Join-Path -Path "$tmpDlsDir" -ChildPath "yq_windows_amd64.exe")" -Destination "$($ENV:YQ_EXE).exe" -Force;
     }
 
     # Fetch 'hjson' CLI preprocessor for JSONC files as a local dependency.
@@ -587,7 +587,7 @@ try
     elseif ($Command -eq "docker-bake")
     {
         # Collect all the bake files.
-        $bakeHclFiles = New-SortedFileSet "$($ENV:DEVCONTAINER_DIR)" "bake" "hcl" "$($ENV:BAKE_FILE_SELECTORS)";
+        $bakeHclFiles = New-SortedFileSet "$($ENV:DEVCONTAINER_DIR)" "docker-bake" "hcl" "$($ENV:BAKE_FILE_SELECTORS)";
         # Build parameters.
         $filesParam = ($bakeHclFiles | ForEach-Object { "--file"; "$_"; });
         # Execute Docker Bake.
@@ -623,7 +623,7 @@ try
     elseif ($Command -eq "docker-compose")
     {
         # Collect all the compose extension files, and concatenate their contents.
-        $extContents = (New-SortedFileSet "$($ENV:DEVCONTAINER_DIR)" "compose-ext" "yml" "$($ENV:COMPOSE_EXT_FILE_SELECTORS)" |
+        $extContents = (New-SortedFileSet "$($ENV:DEVCONTAINER_DIR)" "ext-docker-compose" "yml" "$($ENV:COMPOSE_EXT_FILE_SELECTORS)" |
                 ForEach-Object {
                     # Print file found for informational purposes.
                     Write-Host "Found: '$([System.IO.Path]::GetRelativePath("$($ENV:DEVCONTAINER_DIR)", "$_"))'...";
@@ -639,7 +639,7 @@ try
         Set-Content -Path "$extConcatenatedFile" -Value $extContents -Encoding "utf8" -Force;
 
         # Collect all the compose files.
-        $composeYamlFiles = New-SortedFileSet "$($ENV:DEVCONTAINER_DIR)" "compose" "yml" "$($ENV:COMPOSE_FILE_SELECTORS)";
+        $composeYamlFiles = New-SortedFileSet "$($ENV:DEVCONTAINER_DIR)" "docker-compose" "yml" "$($ENV:COMPOSE_FILE_SELECTORS)";
         # Create temporary files for all the compose files, with the extension contents prepended.
         $tmpFiles = $composeYamlFiles | ForEach-Object {
             # Print file found for informational purposes.

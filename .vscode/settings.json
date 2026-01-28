@@ -22,6 +22,7 @@
     "explorer.autoReveal": false,
     "files.exclude": {
         "**/.git": true,
+        "**/.manage_env": true,
         "**/__pycache__": true
     },
     "files.insertFinalNewline": true,
@@ -36,7 +37,7 @@
     "terminal.integrated.stickyScroll.enabled": false,
     "terminal.integrated.tabs.focusMode": "singleClick",
     "terminal.integrated.tabs.hideCondition": "never",
-    "workbench.colorTheme": "Pwsh Darker",
+    "workbench.colorTheme": "Default Dark Modern",
     "powershell.analyzeOpenDocumentsOnly": false,
     "powershell.buttons.showRunButtons": false,
     "powershell.codeFolding.enable": false,
@@ -67,6 +68,7 @@
     "powershell.pester.useLegacyCodeLens": false,
     "powershell.promptToUpdatePowerShell": false,
     "powershell.scriptAnalysis.enable": true,
+    "powershell.scriptAnalysis.settingsPath": "./.vscode/001-configs/000-config-pss-script-analyzer.psd1",
     "powershell.sideBar.CommandExplorerVisibility": false,
     "powershell.startAsLoginShell.linux": true,
     "powershell.startAsLoginShell.osx": true,
@@ -83,7 +85,11 @@
     "git-log--graph.hide-sidebar-buttons": false,
     "git-log--graph.position": "editor",
     "git-log--graph.show-inferred-quick-branch-tips": true,
-    "workbench.colorCustomizations": {
-        "editorWhitespace.foreground": "#202020"
-    }
+    "shellcheck.customArgs": [
+        "--rcfile=${workspaceFolder}/.vscode/001-configs/000-config-shellcheck.rc"
+    ],
+    "shellcheck.disableVersionCheck": true,
+    "shellcheck.enable": true,
+    "shellcheck.executablePath": "",
+    "shellcheck.run": "onType"
 }

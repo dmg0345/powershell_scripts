@@ -2,9 +2,12 @@
 //   - https://marketplace.visualstudio.com/items?itemName=ms-vscode.PowerShell
 // Do not edit manually — changes will be overwritten.
 {
-    // Enable automatic start when opening a file and linter at workspace level.
+    // Enable automatic start of the extension when opening a file.
     "powershell.startAutomatically": true,
+    // Enable linter analysis at workspace level, providing a common configuration file.
+    // NOTE: Use bundled linter and unique common configuration file, as PowerShell scripts are not critical.
     "powershell.scriptAnalysis.enable": true,
+    "powershell.scriptAnalysis.settingsPath": "./.vscode/001-configs/000-config-pss-script-analyzer.psd1",
     "powershell.analyzeOpenDocumentsOnly": false,
     // Disable run buttons, code folding, prompts and panels.
     "powershell.buttons.showRunButtons": false,
