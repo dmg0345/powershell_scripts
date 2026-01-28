@@ -623,7 +623,7 @@ try
     elseif ($Command -eq "docker-compose")
     {
         # Collect all the compose extension files, and concatenate their contents.
-        $extContents = (New-SortedFileSet "$($ENV:DEVCONTAINER_DIR)" "ext-docker-compose" "yml" "$($ENV:COMPOSE_EXT_FILE_SELECTORS)" |
+        $extContents = (New-SortedFileSet "$($ENV:DEVCONTAINER_DIR)" "docker-compose-ext" "yml" "$($ENV:COMPOSE_EXT_FILE_SELECTORS)" |
                 ForEach-Object {
                     # Print file found for informational purposes.
                     Write-Host "Found: '$([System.IO.Path]::GetRelativePath("$($ENV:DEVCONTAINER_DIR)", "$_"))'...";
