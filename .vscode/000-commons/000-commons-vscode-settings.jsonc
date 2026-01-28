@@ -5,6 +5,8 @@
     // Visual Studio Code Workbench / Editor / Explorer configuration:
     //  - Default theme.
     "workbench.colorTheme": "Default Dark Modern",
+    //   - Disable file preview, if opening a file, open it normally.
+    "workbench.editor.enablePreview": false,
     //   - Render all whitespace as dots.
     "editor.renderWhitespace": "all",
     //   - Trim trailing whitespace, and ensure all files end with single new line.
@@ -30,7 +32,7 @@
     "explorer.autoReveal": false,
     //   - Exclude files from appearing in the explorer.
     "files.exclude": {
-        "**/.manage_env": true,
+        "**/.manage-env": true,
         "**/.git": true,
         "**/__pycache__": true
     },
@@ -59,5 +61,8 @@
     "terminal.integrated.tabs.focusMode": "singleClick",
     // Visual Studio Code integrated diff editor configuration:
     //   - Do not ignore leading or trailing whitespace changes.
-    "diffEditor.ignoreTrimWhitespace": false
+    "diffEditor.ignoreTrimWhitespace": false,
+    // Visual Studio Code integrated git configuration:
+    //   - Do not scan parent folders for Git repositories.
+    "git.openRepositoryInParentFolders": "never"
 }

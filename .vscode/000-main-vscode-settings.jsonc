@@ -1,3 +1,7 @@
 // Visual Studio Code main settings file, for details refer to:
 //   - https://code.visualstudio.com/docs/configure/settings#_workspace-settings
-{}
+{
+    "files.exclude": {
+        "**/.manage-env": false
+    }
+}

@@ -66,8 +66,11 @@ $ErrorActionPreference = "Stop";
 $ProgressPreference = 'SilentlyContinue';
 
 # [Declarations] #######################################################################################################
-# Path to the root directory where the bootstrap and management scripts are located.
-$ROOT_DIR = if ($ENV:ROOT_DIR) { $ENV:ROOT_DIR; } else { Resolve-Path -Path "$PSScriptRoot"; };
+# Path to the root directory where the bootstrap scripts are located.
+$ROOT_DIR = if ($ENV:ROOT_DIR) { $ENV:ROOT_DIR; } else
+{
+    (Resolve-Path -Path (Join-Path -Path "$PSScriptRoot" -ChildPath "..")).Path;
+};
 # Path to '.devcontainer' directory.
 $DEVCONTAINER_DIR = Join-Path -Path "$ROOT_DIR" -ChildPath ".devcontainer";
 # Path to '.vscode' directory.
@@ -92,13 +95,13 @@ else
     (Resolve-Path -Path (Join-Path -Path "$PSHOME" -ChildPath "pwsh")).Path;
 };
 # Path to the PowerShell Core management environment directory, must match the bootstrap scripts.
-$PWSH_MANAGE_ENV_DIR = Join-Path -Path "$ROOT_DIR" -ChildPath ".manage_env";
+$PWSH_MANAGE_ENV_DIR = Join-Path -Path "$ROOT_DIR" -ChildPath ".manage-env";
 # Path to a temporary directory within the management environment directory.
 $PWSH_MANAGE_TMP_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "tmp-dir";
 # Path to a directory with the local dependencies.
 $PWSH_MANAGE_DEP_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "local-deps";
 # Path to the PowerShell Core main management script (this script), must match the bootstrap scripts.
-$PWSH_MANAGE_MAIN_SCRIPT = Join-Path -Path "$ROOT_DIR" -ChildPath "manage.main.ps1";
+$PWSH_MANAGE_MAIN_SCRIPT = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "manage.main.ps1";
 
 # PowerShell Core scripts local dependency pinned version.
 $PWSH_SCRIPTS_VERSION = "1.3.10";

@@ -22,13 +22,14 @@
     "explorer.autoReveal": false,
     "files.exclude": {
         "**/.git": true,
-        "**/.manage_env": true,
+        "**/.manage-env": false,
         "**/__pycache__": true
     },
     "files.insertFinalNewline": true,
     "files.trimFinalNewlines": true,
     "files.trimTrailingWhitespace": true,
     "files.trimTrailingWhitespaceInRegexAndStrings": true,
+    "git.openRepositoryInParentFolders": "never",
     "terminal.integrated.detectLocale": "off",
     "terminal.integrated.enablePersistentSessions": false,
     "terminal.integrated.hideOnLastClosed": false,
@@ -38,6 +39,7 @@
     "terminal.integrated.tabs.focusMode": "singleClick",
     "terminal.integrated.tabs.hideCondition": "never",
     "workbench.colorTheme": "Default Dark Modern",
+    "workbench.editor.enablePreview": false,
     "powershell.analyzeOpenDocumentsOnly": false,
     "powershell.buttons.showRunButtons": false,
     "powershell.codeFolding.enable": false,
@@ -86,6 +88,7 @@
     "git-log--graph.position": "editor",
     "git-log--graph.show-inferred-quick-branch-tips": true,
     "shellcheck.customArgs": [
+        "--norc",
         "--rcfile=${workspaceFolder}/.vscode/001-configs/000-config-shellcheck.rc"
     ],
     "shellcheck.disableVersionCheck": true,

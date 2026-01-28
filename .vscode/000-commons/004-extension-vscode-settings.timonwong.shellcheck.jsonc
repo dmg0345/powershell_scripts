@@ -10,6 +10,7 @@
     "shellcheck.executablePath": "",
     "shellcheck.disableVersionCheck": true,
     "shellcheck.customArgs": [
+        "--norc",
         "--rcfile=${workspaceFolder}/.vscode/001-configs/000-config-shellcheck.rc"
     ]
 }

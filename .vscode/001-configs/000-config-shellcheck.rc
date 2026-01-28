@@ -1,6 +1,7 @@
 # shellcheck Linter tool, for details refer to:
 #   - https://github.com/koalaman/shellcheck
-#   - https://github.com/koalaman/shellcheck/blob/master/shellcheck.1.md#rc-files
+#   - https://github.com/koalaman/shellcheck/wiki/Directive#shellcheckrc-file
+#   - https://github.com/koalaman/shellcheck/wiki/Directive
 # Do not edit manually — changes will be overwritten.
 
 # Allow opening any 'source'd file, even if not specified as input.

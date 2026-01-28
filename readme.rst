@@ -76,7 +76,7 @@ The recommended `User Settings <https://code.visualstudio.com/docs/configure/set
 .. code-block::
 
   {
-    // Disable Dev Container extension magic explicitly, for details refer to:
+    // Disable Dev Container extension magic explicitly for reproducibility, for details refer to:
     //   - Dev Container extension panel in VS Code, features -> settings.
     "dev.containers.cacheVolume": false,
     "dev.containers.copyGitConfig": false,
@@ -90,11 +90,11 @@ The recommended `User Settings <https://code.visualstudio.com/docs/configure/set
     "dev.containers.optimisticallyLaunchDocker": false,
     "remote.defaultExtensionsIfInstalledLocally": [],
 
-    // Disable telemetry, for details refer to:
+    // Disable telemetry explicitly, for details refer to:
     //   - https://code.visualstudio.com/docs/configure/telemetry#_disable-telemetry-reporting
     "telemetry.telemetryLevel": "off",
 
-    // Disable auto-updates and recommendations on Code and extensions, for details refer to:
+    // Disable auto-updates and recommendations on Code and extensions for reproducibility, for details refer to:
     //   - https://code.visualstudio.com/docs/supporting/faq#_how-do-i-opt-out-of-vs-code-autoupdates
     "update.mode": "none",
     "extensions.autoUpdate": false,
@@ -102,15 +102,13 @@ The recommended `User Settings <https://code.visualstudio.com/docs/configure/set
     "extensions.ignoreRecommendations": true,
     "workbench.remoteIndicator.showExtensionRecommendations": false,
 
-    // Other preferences regarding behaviour on startup.
+    // Open blank workspace on startup, do not attempt to restore previous workspaces.
     "workbench.startupEditor": "none",
-    "workbench.editor.enablePreview": false,
-    "window.restoreWindows": "none",
-    "git.openRepositoryInParentFolders": "never"
+    "window.restoreWindows": "none"
   }
 
-If encountering issues, delete the existing installation of `Visual Studio Code` and perform a 
-`clean uninstall <https://code.visualstudio.com/docs/setup/uninstall#_clean-uninstall>`_. 
+If encountering issues, delete the existing installation of `Visual Studio Code` and perform a
+`clean uninstall <https://code.visualstudio.com/docs/setup/uninstall#_clean-uninstall>`_.
 This process will remove all extensions and user settings. Afterwards, install Visual Studio Code from scratch.
 
 Note that framework delegates image building to `Docker Bake` and service orchestration to `Docker Compose`.
@@ -126,6 +124,3 @@ License
 -------
 
 TODO
-
-
-
