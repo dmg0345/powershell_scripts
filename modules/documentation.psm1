@@ -92,7 +92,6 @@ function Start-Sphinx
     Write-Log "Sphinx execution finished, documentation built with no errors." "Success";
 }
 
-########################################################################################################################
 function Start-Doxygen
 {
     <#
@@ -158,11 +157,11 @@ function Start-Doxygen
 
     # Run Doxygen by feeding it from the standard input, to override command arguments and supply new ones.
     Write-Log "Running Doxygen...";
-    & { 
-        Get-Content "$doxyfilePath"; 
+    & {
+        Get-Content "$doxyfilePath";
         Write-Output "OUTPUT_DIRECTORY = `"$doxygenBuildPath`"";
         if ($parsedDB.all_definitions.Count -gt 0)
-        { 
+        {
             $parsedDB.all_definitions | ForEach-Object {
                 # Add to to variables that will be used in the preprocessor.
                 Write-Output "PREDEFINED += $_"
@@ -179,7 +178,6 @@ function Start-Doxygen
     Write-Log "Doxygen execution finished successfully." "Success";
 }
 
-########################################################################################################################
 function Start-DoxygenSphinx
 {
     <#

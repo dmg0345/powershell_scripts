@@ -51,7 +51,7 @@ function Write-Log
     $time = (Get-Date).tostring("dd/MM/yy HH:mm:ss");
     # Get line number and filename of original call if possible, otherwise use default values.
     $match = ((Get-PSCallStack).Location[1] -match "(.*)\..*: .* ([0-9]*)");
-    if ($match) 
+    if ($match)
     {
         # Build formatted message with filename and line.
         $formattedMessage = "[$time] [{0,15}`:{1:d4}] $Message" -f $Matches[1], [int32]$Matches[2];
@@ -66,7 +66,6 @@ function Write-Log
     Write-Host "$formattedMessage" -ForegroundColor "$color";
 }
 
-########################################################################################################################
 function Write-StandardOutput
 {
     <#
@@ -108,7 +107,6 @@ function Write-StandardOutput
     }
 }
 
-########################################################################################################################
 function New-SymbolicLink
 {
     <#
@@ -199,7 +197,6 @@ function New-SymbolicLink
     Write-Log "Created symbolic link from '$((Resolve-Path $Path).Path)' to '$targetFullPath'." "Success";
 }
 
-########################################################################################################################
 function New-CopyItem
 {
     <#
@@ -224,7 +221,7 @@ function New-CopyItem
         [String]
         $Destination
     )
-    
+
     Write-Log "Copying item from '$Source' to '$Destination'...";
 
     # Ensure if the source path exists.
@@ -251,7 +248,6 @@ function New-CopyItem
     Write-Log "Copied item from '$((Resolve-Path $Source).Path)' to '$((Resolve-Path $Destination).Path)'..." "Success";
 }
 
-########################################################################################################################
 function New-TemporaryFolder
 {
     <#
@@ -265,21 +261,165 @@ function New-TemporaryFolder
         $tempFolder = New-TemporaryFolder;
     #>
     param()
-    
+
     return New-TemporaryFile | ForEach-Object {
         Remove-Item $_ -Force; New-Item -Path "$($_.FullName)" -ItemType Directory -Force | Out-Null; $_.FullName;
     };
 }
 
-########################################################################################################################
+function Get-OrderedFileSet
+{
+    <#
+    .DESCRIPTION
+        Looks for files of the form '[000-]<...>-<FileSuffix>[.<FileScope>].<FileExtension>' in a given directory
+        and its direct subdirectories. Returning a sorted array of filepaths with the files found in each of the
+        sorted subdirectories first, and in the given directory last.
+
+        A base filename follows the pattern '[000-]<...>-<FileSuffix>.<FileExtension>' and a scoped filename follows
+        the pattern '[000-]<...>-<FileSuffix>.<FileScope>.<FileExtension>'.
+
+    .PARAMETER Path
+        The path to the directory where to look for relevant files.
+
+    .PARAMETER FileSuffix
+        File suffix to capture, e.g. 'compose' for '000-.*-compose.yml'.
+
+    .PARAMETER FileExtension
+        File extension to capture, e.g. 'json' for '000-.*-settings.json'.
+
+    .PARAMETER FileScopes
+        An optional array with scopes for files, e.g. 'dev,enc' for '000-.*-x.dev.yml' and '000-.*-x.enc.yml'.
+
+    .PARAMETER DisableNumbering
+        Disables the use of '000-' prefix on files and directories.
+
+    .PARAMETER DisableBase
+        Excludes the paths to the base files from the results.
+
+    .PARAMETER DisableScoped
+        Excludes the paths to the scoped files from the results.
+
+    .OUTPUTS
+        An array with sorted paths to the relevant files found.
+
+    .EXAMPLE
+        New-SortedFileSet -Path "./folder" `
+            -FileSuffix "vscode-settings" `
+            -FileExtension "jsonc" `
+            -FileScopes @("dev", "prod");
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [String]
+        $Path,
+        [Parameter(Mandatory = $true)]
+        [String]
+        $FileSuffix,
+        [Parameter(Mandatory = $true)]
+        [String]
+        $FileExtension,
+        [Parameter(Mandatory = $false)]
+        [String[]]
+        $FileScopes = @(),
+        [Parameter(Mandatory = $false)]
+        [switch]
+        $DisableNumbering = $false,
+        [Parameter(Mandatory = $false)]
+        [switch]
+        $DisableBase = $false,
+        [Parameter(Mandatory = $false)]
+        [switch]
+        $DisableScoped = $false
+    )
+
+    # If the destination directory does not exist, do not return any files.
+    if (-not (Test-Path -Path "$Path" -PathType Container))
+    {
+        return @();
+    }
+
+    # Determine prefix based on enforcing numbering or not.
+    $prefix = if (-not $DisableNumbering) { "[0-9]{3}-"; } else { ""; };
+
+    # Find sub-directories in the destination directory that meet the search criteria, and sort them.
+    $sortedSubDirs = Get-ChildItem -Path "$Path" -Directory -Depth 0 |
+        Where-Object { $_.Name -match "^$prefix.*" } |
+        Sort-Object -Property "Name" |
+        ForEach-Object { $_.FullName; };
+
+    # Find duplicate ordering in subdirectories, if numbering is enabled.
+    if (-not $DisableNumbering)
+    {
+        $sortedSubDirs |
+            Split-Path -Leaf |
+            ForEach-Object { $_.Substring(0, 3); } |
+            Group-Object |
+            Where-Object { $_.Count -gt 1; } |
+            ForEach-Object { throw "Found sub-directory ordering duplicate numbering at '$Path'."; }
+    }
+
+
+    # Loop the sorted sub-directories first, and then the main directory last, and fetch relevant files.
+    $allSortedFiles = @();
+    $escFileSuffix = [regex]::Escape($FileSuffix);
+    $escFileExtension = [regex]::Escape($FileExtension);
+    foreach ($scanDir in (@($sortedSubDirs) + @($Path)))
+    {
+        # Find base files in the destination directory that meet the search criteria.
+        $sortedCommonFiles = Get-ChildItem -Path "$scanDir" -File -Depth 0 |
+            Where-Object { $_.Name -match "^$prefix.*-$escFileSuffix\.$escFileExtension`$"; } |
+            ForEach-Object { $_.Name; };
+
+        # Find scoped files in the destination directory that meet the search criteria.
+        $sortedSelectedFiles = $FileScopes |
+            ForEach-Object { $_.Trim(); } |
+            Where-Object { $_.Length -gt 0; } |
+            ForEach-Object {
+                $escFileSelector = [regex]::Escape($_);
+                Get-ChildItem -Path "$scanDir" -File -Depth 0 |
+                    Where-Object { $_.Name -match "^$prefix.*-$escFileSuffix\.$escFileSelector\.$escFileExtension`$"; } |
+                    ForEach-Object { $_.Name; }
+                };
+
+        # Concatenate the common files and the sorted selected files for the folder, they will be sorted later.
+        $sortedFiles = @();
+        if (-not $DisableBase) { $sortedFiles += @($sortedCommonFiles); };
+        if (-not $DisableScoped) { $sortedFiles += @($sortedSelectedFiles); };
+
+        # Check if any relevant files were found.
+        if ($sortedFiles.Length -gt 0)
+        {
+            # Find duplicates within the same scan directory, if any and numbering is enforced.
+            if (-not $DisableNumbering)
+            {
+                $sortedFiles |
+                    ForEach-Object { $_.Substring(0, 3); } |
+                    Group-Object |
+                    Where-Object { $_.Count -gt 1; } |
+                    ForEach-Object { throw "Found file ordering duplicate numbering at '$scanDir'."; }
+            }
+
+            # Sort found files.
+            $sortedFiles = $sortedFiles |
+                Sort-Object |
+                ForEach-Object { Join-Path -Path "$scanDir" -ChildPath "$_"; };
+
+            # Add to all files.
+            $allSortedFiles += $sortedFiles;
+        }
+    };
+
+    return $allSortedFiles;
+}
+
 function New-JSONC
 {
     <#
     .DESCRIPTION
         Parses a JSON with comments, stripping them out and then returning a normal JSON object.
-        
+
         JSON files with comments usually have the '.jsonc' extension.
-        
+
         Based on: https://stackoverflow.com/a/57092959/21951997.
 
     .PARAMETER JSONCPath
@@ -296,23 +436,24 @@ function New-JSONC
         [String]
         $JSONCPath
     )
-    
+
+    # TODO: ConvertFrom-JSON might already handle this already... double check.
+
     # Ensure path to the JSONC file exists.
     if (-not (Test-Path "$JSONCPath"))
     {
         throw "Path '$JSONCPath' does not exist.";
     }
-    
+
     # Get contents and comment everything out.
     $cnts = Get-Content -Path "$JSONCPath" -Raw;
     $cnts = $cnts -replace '(?m)(?<=^([^"]|"[^"]*")*)//.*';
     $cnts = $cnts -replace '(?ms)/\*.*?\*/';
-    
+
     # Return as hashtable object.
     return $cnts | ConvertFrom-Json;
 }
 
-########################################################################################################################
 function New-CompilationDatabase
 {
     <#
@@ -397,12 +538,12 @@ function New-CompilationDatabase
     # Parse JSON as a hashtable, and loop each item.
     $compileCommands = New-JSONC $CompileCommandsJSON;
     $parsed = @{
-        "c_compiler"        = $null;
-        "cpp_compiler"      = $null;
-        "all_source_files"  = @{};
-        "all_include_dirs"  = New-Object Collections.Generic.List[String];
+        "c_compiler" = $null;
+        "cpp_compiler" = $null;
+        "all_source_files" = @{};
+        "all_include_dirs" = New-Object Collections.Generic.List[String];
         "all_include_files" = New-Object Collections.Generic.List[String];
-        "all_definitions"   = New-Object Collections.Generic.List[String];
+        "all_definitions" = New-Object Collections.Generic.List[String];
     };
     # Cache for include directories to speed up operations.
     $includeDirsCache = @{};
@@ -411,7 +552,7 @@ function New-CompilationDatabase
         # Define empty item to add.
         $item = @{
             "include_dirs" = @{};
-            "definitions"  = New-Object Collections.Generic.List[String];
+            "definitions" = New-Object Collections.Generic.List[String];
         };
 
         # Check command consistency.
@@ -521,7 +662,6 @@ function New-CompilationDatabase
     return $parsed;
 }
 
-########################################################################################################################
 function Remove-FromCompilationDatabase
 {
     <#
@@ -592,7 +732,7 @@ function Remove-FromCompilationDatabase
     if (-not (Test-Path $OutputCompileCommandsJSON))
     {
         New-Item -Path "$($OutputCompileCommandsJSON)" -ItemType File -Force | Out-Null;
-    } 
+    }
 
     # Save JSON to file, overwriting it if it exists, creating the file if not.
     ConvertTo-Json $keptEntries | Set-Content -Path "$($OutputCompileCommandsJSON)" -Force -Encoding utf8;
@@ -604,6 +744,51 @@ function Remove-FromCompilationDatabase
     return $deletedEntries;
 }
 
+function Get-EnvironmentSnapshot
+{
+    <#
+    .DESCRIPTION
+        Gets a snapshot of the current environment.
+
+    .OUTPUTS
+        A snapshot of the current environment.
+
+    .EXAMPLE
+        $snapshot = Get-EnvironmentSnapshot;
+    #>
+    param()
+
+    # Create blank hash table.
+    $snapshot = @{};
+    # Fill with items of current environment.
+    Get-ChildItem ENV: | ForEach-Object { $snapshot[$_.Name] = $_.Value; }
+    # Return snapshot.
+    return $snapshot;
+}
+
+function Restore-EnvironmentSnapshot
+{
+    <#
+    .DESCRIPTION
+        Restores the current environment from a given snapshot.
+
+    .PARAMETER Snapshot
+        The snapshot to fill the environment with.
+
+    .EXAMPLE
+        Restore-EnvironmentSnapshot -Snapshot $envSnapshot;
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [HashTable]
+        $Snapshot
+    )
+
+    # Wipe the current environment.
+    Get-ChildItem ENV: | Remove-Item -Force;
+    # Fill the wiped environment from the snapshot.
+    foreach ($key in $Snapshot.Keys) { Set-Item "ENV:${key}" $Snapshot[$key]; }
+}
 
 # [Execution] ##########################################################################################################
 Export-ModuleMember Write-Log;
@@ -612,8 +797,12 @@ Export-ModuleMember Write-StandardOutput;
 Export-ModuleMember New-SymbolicLink;
 Export-ModuleMember New-CopyItem;
 Export-ModuleMember New-TemporaryFolder;
+Export-ModuleMember Get-OrderedFileSet;
 
 Export-ModuleMember New-JSONC;
 
 Export-ModuleMember New-CompilationDatabase;
 Export-ModuleMember Remove-FromCompilationDatabase;
+
+Export-ModuleMember Get-EnvironmentSnapshot;
+Export-ModuleMember Restore-EnvironmentSnapshot;

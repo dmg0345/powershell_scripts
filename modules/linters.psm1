@@ -219,7 +219,6 @@ function Start-CppCheck
     Write-Log "Finished running CppCheck, no errors found." "Success";
 }
 
-########################################################################################################################
 function Start-ClangTidy
 {
     <#
@@ -306,7 +305,6 @@ function Start-ClangTidy
     Write-Log "Finished running clang-tidy, no errors found." "Success";
 }
 
-########################################################################################################################
 function Start-ClangFormat
 {
     <#
@@ -351,7 +349,7 @@ function Start-ClangFormat
             if ((Get-Item "$path") -is [System.IO.DirectoryInfo])
             {
                 Get-ChildItem -Path "$path" -Include @("*.c", "*.cpp", "*.h", "*.hpp") -Force -Recurse | ForEach-Object `
-                { 
+                {
                     $files += "$($_.FullName)";
                 };
             }
@@ -378,7 +376,6 @@ function Start-ClangFormat
     Write-Log "Finished running clang-format, no errors found." "Success";
 }
 
-########################################################################################################################
 function Start-Doc8
 {
     <#
@@ -437,7 +434,6 @@ function Start-Doc8
     Write-Log "Finished running doc8, no errors found." "Success";
 }
 
-########################################################################################################################
 function Start-Pylint
 {
     <#
@@ -490,7 +486,6 @@ function Start-Pylint
     Write-Log "Finished running pylint, no errors found." "Success";
 }
 
-########################################################################################################################
 function Start-Pyright
 {
     <#
@@ -543,7 +538,6 @@ function Start-Pyright
     Write-Log "Finished running pyright, no errors found." "Success";
 }
 
-########################################################################################################################
 function Start-Black
 {
     <#

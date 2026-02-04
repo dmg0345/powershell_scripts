@@ -9,7 +9,6 @@
 [CmdletBinding(PositionalBinding = $false)]
 param (
     # Main command to execute, one of:
-    #   - 'pwsh-load': Host/Container command, loads the Powershell modules in the terminal for more granular access.
     #   - 'git': Host/Container command, forwards the script arguments to Git along with other relevant arguments.
     #   - 'git-clean': Host/Container command, recursively cleans the repository and submodules with Git.
     #   - 'docker': Host command, forwards the script arguments to Docker along with other relevant arguments.
@@ -34,28 +33,47 @@ param (
     [Parameter(Mandatory = $false)]
     [Alias("c")]
     [String]
-    $Command,
+    $Command = "",
+
+    # TODO: A config parameter that loads details from the YAML file per command, uses 'default'.
+    # TODO: A config parameter that loads environment from the YAML file for al commands, uses 'default'.
 
     # Target for 'docker-bake-*' related commands.
     [Parameter(Mandatory = $false)]
     [Alias("t")]
     [String]
-    $BakeTarget,
+    $BakeTarget = "default",
 
     # Service for 'docker-compose-*' related commands.
     [Parameter(Mandatory = $false)]
     [Alias("s")]
     [String]
-    $ComposeService,
+    $ComposeService = "default",
 
-    # The application script identifier where to redirect the arguments.
+    # The module script identifier for which to redirect the logic.
     [Parameter(Mandatory = $false)]
     [String]
-    $Script,
+    $Module = "",
+
+    # Mandatory parameter with the PowerShell Core executable as resolved by the bootstrap script.
+    [Parameter(Mandatory = $true)]
+    [String]
+    $ManagementEnvironmentPwsh,
+
+    # Mandatory parameter with the manage environment version as resolved by the bootstrap script.
+    [Parameter(Mandatory = $true)]
+    [String]
+    $ManagementEnvironmentVersion,
+
+    # Mandatory parameter with the platform executing the scripts as resolved by the bootstrap script.
+    [Parameter(Mandatory = $true)]
+    [ValidateSet("win-x64", "darwin-x64", "linux-x64")]
+    [String]
+    $ManagementEnvironmentPlatform,
 
     # Collection of remaining unbound parameters passed.
     [Parameter(ValueFromRemainingArguments = $true)]
-    $PSUnboundParameters
+    $PSUnboundParameters = @()
 )
 
 # Make non-zero exit codes of applications behave with respect to 'ErrorActionPreference'.
@@ -66,461 +84,406 @@ $ErrorActionPreference = "Stop";
 $ProgressPreference = 'SilentlyContinue';
 
 # [Declarations] #######################################################################################################
-# Path to the root directory where the bootstrap scripts are located.
-$ROOT_DIR = if ($ENV:ROOT_DIR) { $ENV:ROOT_DIR; } else
-{
-    (Resolve-Path -Path (Join-Path -Path "$PSScriptRoot" -ChildPath "..")).Path;
-};
-# Path to '.devcontainer' directory.
+# The platform running the management environment, as resolved by the bootstrap script.
+$PLATFORM = $ManageEnvironmentPlatform;
+# Path to the root directory where the bootstrap scripts are located, must match the bootstrap scripts.
+$ROOT_DIR = Resolve-Path -Path (Join-Path -Path "$PSScriptRoot" -ChildPath "..").Path;
+# Path to '.devcontainer' directory, can be overriden via '/vscode/<config>/devcontainer'.
 $DEVCONTAINER_DIR = Join-Path -Path "$ROOT_DIR" -ChildPath ".devcontainer";
-# Path to '.vscode' directory.
+# Path to '.vscode' directory, can be overriden via '/vscode/<config>/settings'.
 $VSCODE_DIR = Join-Path -Path "$ROOT_DIR" -ChildPath ".vscode";
 
-# Path to the Git executable.
-$GIT_EXE = if ($ENV:GIT_EXE) { $ENV:GIT_EXE; } else { "git"; };
-# Path to the Docker executable.
-$DOCKER_EXE = if ($ENV:DOCKER_EXE) { $ENV:DOCKER_EXE; } else { "docker"; };
-# Path to the Visual Studio Code CLI executable.
-$VSCODE_CLI_EXE = if ($ENV:VSCODE_CLI_EXE) { $ENV:VSCODE_CLI_EXE; } else { "code"; };
-# Path to the Visual Studio Code DevContainer CLI executable.
-$VSCODE_DEV_CONTAINER_CLI_EXE = if ($ENV:VSCODE_DEV_CONTAINER_CLI_EXE) { $ENV:VSCODE_DEV_CONTAINER_CLI_EXE; } else { "devcontainer"; };
+# Path to the PowerShell Core executable.
+$PWSH_EXE = $ManageEnvironmentPwsh;
+# Path to the Git executable, must exist in PATH.
+$GIT_EXE = (Get-Command -Name "git" -ErrorAction "SilentlyContinue").Source ?? "git";
+# Path to the Docker executable, must exist in PATH.
+$DOCKER_EXE = (Get-Command -Name "docker" -ErrorAction "SilentlyContinue").Source ?? "docker";
+# Path to the Visual Studio Code CLI executable, must exist in PATH.
+$VSCODE_EXE = (Get-Command -Name "code" -ErrorAction "SilentlyContinue").Source ?? "code";
+# Path to the Visual Studio Code DevContainer CLI executable, must exist in PATH.
+$VSCODE_DEVCONTAINER_EXE = (Get-Command -Name "devcontainer" -ErrorAction "SilentlyContinue").Source ?? "devcontainer";
 
-# Path to the PowerShell Core executable executing the script, must match the bootstrap scripts.
-$PWSH_EXE = if (Test-Path (Join-Path -Path "$PSHOME" -ChildPath "pwsh.exe"))
-{
-    (Resolve-Path -Path (Join-Path -Path "$PSHOME" -ChildPath "pwsh.exe")).Path;
-}
-else
-{
-    (Resolve-Path -Path (Join-Path -Path "$PSHOME" -ChildPath "pwsh")).Path;
-};
 # Path to the PowerShell Core management environment directory, must match the bootstrap scripts.
 $PWSH_MANAGE_ENV_DIR = Join-Path -Path "$ROOT_DIR" -ChildPath ".manage-env";
 # Path to a temporary directory within the management environment directory.
-$PWSH_MANAGE_TMP_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "tmp-dir";
+$PWSH_MANAGE_ENV_TMP_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "tmp-dir";
 # Path to a directory with the local dependencies.
-$PWSH_MANAGE_DEP_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "local-deps";
-# Path to the PowerShell Core main management script (this script), must match the bootstrap scripts.
-$PWSH_MANAGE_MAIN_SCRIPT = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "manage.main.ps1";
+$PWSH_MANAGE_ENV_DEP_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "local-deps";
+# Path to the PowerShell Core main management script file (this script), must match the bootstrap scripts.
+$PWSH_MANAGE_ENV_MAIN_SCRIPT_FILE = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "manage.main.ps1";
+# Path to the locked management environment configuration YAML file, must match the bootstrap scripts.
+$PWSH_MANAGE_ENV_LOCK_FILE = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "manage-env.lock.yml";
 
 # PowerShell Core scripts local dependency pinned version.
-$PWSH_SCRIPTS_VERSION = "1.3.10";
+$PWSH_SCRIPTS_VERSION = $ManageEnvironmentVersion;
 # Path to the PowerShell Core scripts local dependency directory.
-$PWSH_SCRIPTS_DIR = Join-Path -Path "$PWSH_MANAGE_DEP_DIR" -ChildPath "pwsh-scripts";
+$PWSH_SCRIPTS_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DEP_DIR" -ChildPath "pwsh-scripts";
 # 'yq' CLI utility local dependency pinned version.
 $YQ_VERSION = "4.50.1";
-# Path to the 'yq' CLI utility local dependency.
-$YQ_EXE = Join-Path -Path "$PWSH_MANAGE_DEP_DIR" -ChildPath "yq";
+# Path to the 'yq' CLI utility local dependency installation directory.
+$YQ_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DEP_DIR" -ChildPath "yq";
+# Path to the 'yq' CLI utility local dependency, resolved when installed.
+$YQ_EXE = $null;
 # 'hjson' CLI utility local dependency pinned version.
 $HJSON_VERSION = "4.6.0";
-# Path to the 'hjson' CLI utility local dependency.
-$HJSON_EXE = Join-Path -Path "$PWSH_MANAGE_DEP_DIR" -ChildPath "hjson";
+# Path to the 'hjson' CLI utility local dependency installation directory.
+$HJSON_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DEP_DIR" -ChildPath "hjson";
+# Path to the 'hjson' CLI utility local dependency, resolved when installed.
+$HJSON_EXE = $null;
 
-# Target for 'docker-bake-*' commands.
-$DOCKER_BAKE_TARGET = if ($BakeTarget -ne "") { $BakeTarget; } else { "dev-container"; };
-# Docker Bake Project name.
-$DOCKER_BAKE_PROJECT_NAME = if ($ENV:BAKE_PROJECT_NAME) { $ENV:BAKE_PROJECT_NAME; } else
-{
-    (Split-Path -Path "." -Leaf).ToLower().Replace(" ", "-").Replace("_", "-")
-};
-# Docker Bake Images local registry.
-$DOCKER_BAKE_IMAGE_LOCAL_REGISTRY = if ($ENV:BAKE_IMAGE_LOCAL_REGISTRY) { $ENV:BAKE_IMAGE_LOCAL_REGISTRY; } else
-{
-    "localhost/localuser";
-};
+# The hash table equivalent of the locked management configuration YAML file, resolved at runtime.
+$MANAGE_ENV_CFG = $null;
 
-# Service for 'docker-compose-*' commands.
-$DOCKER_COMPOSE_SERVICE = if ($ComposeService -ne "") { $ComposeService; } else { "dev-container"; };
-# Docker Compose Project name.
-$DOCKER_COMPOSE_PROJECT_NAME = if ($ENV:COMPOSE_PROJECT_NAME) { $ENV:COMPOSE_PROJECT_NAME; } else
-{
-    (Split-Path -Path "." -Leaf).ToLower().Replace(" ", "-").Replace("_", "-")
-};
+# Docker Bake project name, can be overriden via 'ENV:BAKE_PROJECT_NAME'.
+$DOCKER_BAKE_PROJECT_NAME = (Split-Path -Path "$ROOT_DIR" -Leaf).ToLower().Replace(" ", "-").Replace("_", "-");
+# Docker Bake local images registry, can be overriden via 'ENV:BAKE_IMAGE_LOCAL_REGISTRY'.
+$DOCKER_BAKE_IMAGE_LOCAL_REGISTRY = "localhost/localuser";
+
+# Docker Compose Project name, can be overriden via 'ENV:COMPOSE_PROJECT_NAME'.
+$DOCKER_COMPOSE_PROJECT_NAME = $DOCKER_BAKE_PROJECT_NAME;
 
 # [Internal Functions] #################################################################################################
-function Test-LocalDependencies
+function Test-LocalDependency
 {
     <#
     .DESCRIPTION
         Determines if the PowerShell Core scripts and other local dependencies are available.
 
+    .PARAMETER Dependency
+        The local dependency to test. Defaults to all dependencies.
+
     .OUTPUTS
         True if the system PowerShell Core scripts and the other local dependencies are available and ready for use.
     #>
-    param()
+    param(
+        [Parameter(Mandatory = $false)]
+        [ValidateSet("all", "pwsh-scripts", "yq", "hjson")]
+        [String]
+        $Dependency = "all"
+    )
 
-    try
+    # Test for PowerShell Core scripts dependency.
+    if ($Dependency -in @("all", "pwsh-scripts"))
     {
-        # Get the tag of the PowerShell Core scripts if possible, and ensure it matches expected one.
-        $gitTag = & "$($ENV:GIT_EXE)" -C "$($ENV:PWSH_SCRIPTS_DIR)" describe --exact-match --tags HEAD 2>$null;
-        if ($gitTag -ne "$($ENV:PWSH_SCRIPTS_VERSION)")
+        try
         {
-            return $false;
+            # Get the tag of the PowerShell Core scripts if possible, and ensure it matches expected one.
+            $gitTag = & "$GIT_EXE" -C "$PWSH_SCRIPTS_DIR" describe --exact-match --tags HEAD 2>$null;
+            if ($gitTag -ne "$PWSH_SCRIPTS_VERSION")
+            {
+                return $false;
+            }
         }
+        catch { return $false; }
     }
-    catch { return $false; }
 
-    try
+    # Test for 'yq' CLI utility dependency.
+    if ($Dependency -in @("all", "yq"))
     {
-        # Get the 'yq' CLI utility version if possible and do a check for expected version.
-        $yqVersion = & "$($ENV:YQ_EXE)" --version 2>$null;
-        if (-not ($yqVersion -match ".*v$($ENV:YQ_VERSION)`$"))
+        try
         {
-            return $false;
+            # Get the 'yq' CLI utility version if possible and do a check for expected version.
+            $yqVersion = & "$YQ_EXE" --version 2>$null;
+            if (-not ($yqVersion -match ".*v$YQ_VERSION`$"))
+            {
+                return $false;
+            }
         }
+        catch { return $false; }
     }
-    catch { return $false; }
 
-    try
+    # Test for 'hjson' CLI utility dependency.
+    if ($Dependency -in @("all", "hjson"))
     {
-        # Get the 'hjson' CLI utility version if possible and do a check for expected version.
-        $hjsonVersion = & "$($ENV:HJSON_EXE)" -v 2>$null;
-        if (-not ($hjsonVersion -match "^v$($ENV:HJSON_VERSION)`$"))
+        try
         {
-            return $false;
+            # Get the 'hjson' CLI utility version if possible and do a check for expected version.
+            $hjsonVersion = & "$HJSON_EXE" -v 2>$null;
+            if (-not ($hjsonVersion -match "^v$HJSON_VERSION`$"))
+            {
+                return $false;
+            }
         }
+        catch { return $false; }
     }
-    catch { return $false; }
 
-    # All dependencies installed.
+    # Dependency installed.
     return $true;
 }
 
-function Install-LocalDependencies
+function Install-LocalDependency
 {
     <#
     .DESCRIPTION
         Installs the PowerShell Core Scripts and other local dependencies if not already installed.
+
+    .PARAMETER Dependency
+        The local dependency to install. Defaults to all dependencies.
     #>
-    param()
+    param(
+        [Parameter(Mandatory = $false)]
+        [ValidateSet("all", "pwsh-scripts", "yq", "hjson")]
+        [String]
+        $Dependency = "all"
+    )
 
     # Check if local dependencies are already installed, and in that case do nothing.
-    if (Test-LocalDependencies)
+    if (Test-LocalDependency -Dependency "$Dependency")
     {
         return;
     }
 
-    # Remove directory with local dependencies and create anew.
-    Remove-Item -Path "$($ENV:PWSH_MANAGE_DEP_DIR)" -Force -Recurse -ErrorAction 'SilentlyContinue';
-    New-Item -Path "$($ENV:PWSH_MANAGE_DEP_DIR)" -ItemType Directory -Force | Out-Null;
-
-    # Configure the repository for download and installation of the PowerShell Core scripts.
-    Write-Host "Installing PowerShell Core scripts '$($ENV:PWSH_SCRIPTS_VERSION)' in local environment...";
-    & "$($ENV:GIT_EXE)" clone --quiet --branch "$($ENV:PWSH_SCRIPTS_VERSION)" --depth 1 `
-        --shallow-submodules --recurse-submodules `
-        "https://github.com/dmg0345/powershell_scripts" "$($ENV:PWSH_SCRIPTS_DIR)";
+    # If the path to the local dependency folder does not exist, ensure it is created.
+    New-Item -Path "$PWSH_MANAGE_ENV_DEP_DIR" -ItemType Directory -Force | Out-Null;
 
     # Create folder specific for downloads in the temporary folder.
-    $tmpDlsDir = Join-Path -Path "$($ENV:PWSH_MANAGE_TMP_DIR)" -ChildPath "$(New-Guid)";
+    $tmpDlsDir = Join-Path -Path "$PWSH_MANAGE_ENV_TMP_DIR" -ChildPath "$(New-Guid)";
     New-Item -Path "$tmpDlsDir" -ItemType Directory -Force | Out-Null;
 
-    # Install 'yq' CLI preprocessor for YAML / JSON / HCL files as a local dependency.
-    Write-Host "Installing yq '$($ENV:YQ_VERSION)' in local environment...";
-    if ($IsLinux)
+    # Install PowerShell Core scripts dependency.
+    if ($Dependency -in @("all", "pwsh-scripts"))
     {
-        # Download file.
-        $outFile = Join-Path -Path "$tmpDlsDir" -ChildPath "yq.tar.gz";
-        Invoke-WebRequest -Uri "https://github.com/mikefarah/yq/releases/download/v$($ENV:YQ_VERSION)/yq_linux_amd64.tar.gz" `
-            -OutFile "$outFile";
-        # Extract.
-        tar -xzf "$outFile" -C "$tmpDlsDir";
-        # Install as local dependency.
-        Move-Item -Path "$(Join-Path -Path "$tmpDlsDir" -ChildPath "yq_linux_amd64")" -Destination "$($ENV:YQ_EXE)" -Force;
-    }
-    elseif ($IsMacOS)
-    {
-        # Download file.
-        $outFile = Join-Path -Path "$tmpDlsDir" -ChildPath "yq.tar.gz";
-        Invoke-WebRequest -Uri "https://github.com/mikefarah/yq/releases/download/v$($ENV:YQ_VERSION)/yq_darwin_amd64.tar.gz" `
-            -OutFile "$outFile";
-        # Extract.
-        tar -xzf "$outFile" -C "$tmpDlsDir";
-        # Install as local dependency.
-        Move-Item -Path "$(Join-Path -Path "$tmpDlsDir" -ChildPath "yq_darwin_amd64")" -Destination "$($ENV:YQ_EXE)" -Force;
-    }
-    else
-    {
-        # Download file.
-        $outFile = Join-Path -Path "$tmpDlsDir" -ChildPath "yq.zip";
-        Invoke-WebRequest -Uri "https://github.com/mikefarah/yq/releases/download/v$($ENV:YQ_VERSION)/yq_windows_amd64.zip" `
-            -OutFile "$outFile";
-        # Extract.
-        Expand-Archive -Path "$outFile" -DestinationPath "$tmpDlsDir";
-        # Install as local dependency.
-        Move-Item -Path "$(Join-Path -Path "$tmpDlsDir" -ChildPath "yq_windows_amd64.exe")" -Destination "$($ENV:YQ_EXE).exe" -Force;
+        # Remove current PowerShell Core scripts, if any.
+        Remove-Item -Path "$PWSH_SCRIPTS_DIR" -Force -Recurse -ErrorAction 'SilentlyContinue';
+
+        # Configure the repository for download and installation of the PowerShell Core scripts.
+        Write-Output "Installing PowerShell Core scripts '$PWSH_SCRIPTS_VERSION' in local environment...";
+        & "$GIT_EXE" clone --quiet --branch "$PWSH_SCRIPTS_VERSION" --depth 1 `
+            --shallow-submodules --recurse-submodules `
+            "https://github.com/dmg0345/powershell_scripts" "$PWSH_SCRIPTS_DIR";
     }
 
-    # Fetch 'hjson' CLI preprocessor for JSONC files as a local dependency.
-    Write-Host "Installing hjson '$($ENV:HJSON_VERSION)' in local environment...";
-    if ($IsLinux)
+    # Install 'yq' CLI preprocessor dependency.
+    if ($Dependency -in @("all", "yq"))
     {
-        # Download file.
-        $outFile = Join-Path -Path "$tmpDlsDir" -ChildPath "hjson.tar.gz";
-        Invoke-WebRequest -Uri "https://github.com/hjson/hjson-go/releases/download/v$($ENV:HJSON_VERSION)/hjson_v$($ENV:HJSON_VERSION)_linux_amd64.tar.gz" `
-            -OutFile "$outFile";
-        # Extract.
-        tar -xzf "$outFile" -C "$tmpDlsDir";
-        # Install as local dependency.
-        Move-Item -Path "$(Join-Path -Path "$tmpDlsDir" -ChildPath "hjson")" -Destination "$($ENV:HJSON_EXE)" -Force;
+        # Remove current 'yq' scripts, if any, and create it anew.
+        Remove-Item -Path "$YQ_DIR" -Force -Recurse -ErrorAction 'SilentlyContinue';
+        New-Item -Path "$YQ_DIR" -ItemType "Directory" -Force | Out-Null;
+
+        # Configure the repository for download and installation of the PowerShell Core scripts.
+        Write-Output "Installing yq CLI tool '$YQ_VERSION' in local environment...";
+        switch ($PLATFORM)
+        {
+            "linux-x64"
+            {
+                # Download file.
+                $outFile = Join-Path -Path "$tmpDlsDir" -ChildPath "yq.tar.gz";
+                Invoke-WebRequest -OutFile "$outFile" `
+                    -Uri "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_amd64.tar.gz";
+                # Extract to temporary folder with downloads.
+                tar -xzf "$outFile" -C "$tmpDlsDir";
+                # Resolve binary filenames from source to destination, and deploy it.
+                $srcBinary = Join-Path -Path "$tmpDlsDir" -ChildPath "yq_linux_amd64";
+                $destBinary = Join-Path -Path "$YQ_DIR" -ChildPath "yq_linux_amd64";
+                Move-Item -Path "$srcBinary" -Destination "$destBinary" -Force;
+                # Ensure files have proper permissions.
+                chmod +x "$destBinary";
+                # Resolve final directory for 'yq' executable.
+                $YQ_EXE = $destBinary;
+            }
+            "darwin-64"
+            {
+                # Download file.
+                $outFile = Join-Path -Path "$tmpDlsDir" -ChildPath "yq.tar.gz";
+                Invoke-WebRequest -OutFile "$outFile" `
+                    -Uri "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_darwin_amd64.tar.gz";
+                # Extract to temporary folder with downloads.
+                tar -xzf "$outFile" -C "$tmpDlsDir";
+                # Resolve binary filenames from source to destination, and deploy it.
+                $srcBinary = Join-Path -Path "$tmpDlsDir" -ChildPath "yq_darwin_amd64";
+                $destBinary = Join-Path -Path "$YQ_DIR" -ChildPath "yq_darwin_amd64";
+                Move-Item -Path "$srcBinary" -Destination "$destBinary" -Force;
+                # Ensure files have proper permissions.
+                chmod +x "$destBinary";
+                # Resolve final directory for 'yq' executable.
+                $YQ_EXE = $destBinary;
+            }
+            "win-x64"
+            {
+                # Download file.
+                $outFile = Join-Path -Path "$tmpDlsDir" -ChildPath "yq.zip";
+                Invoke-WebRequest -OutFile "$outFile" `
+                    -Uri "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_windows_amd64.zip";
+                # Extract to temporary folder with downloads.
+                Expand-Archive -Path "$outFile" -DestinationPath "$tmpDlsDir";
+                # Resolve binary filenames from source to destination, and deploy it.
+                $srcBinary = Join-Path -Path "$tmpDlsDir" -ChildPath "yq_windows_amd64.exe";
+                $destBinary = Join-Path -Path "$YQ_DIR" -ChildPath "yq_windows_amd64.exe";
+                Move-Item -Path "$srcBinary" -Destination "$destBinary" -Force;
+                # Resolve final directory for 'yq' executable.
+                $YQ_EXE = $destBinary;
+            }
+            default { throw "Unable to install 'yq' for platform '$PLATFORM'."; }
+        }
     }
-    elseif ($IsMacOS)
+
+    # Install 'hjson' CLI preprocessor dependency.
+    if ($Dependency -in @("all", "hjson"))
     {
-        # Download file.
-        $outFile = Join-Path -Path "$tmpDlsDir" -ChildPath "hjson.tar.gz";
-        Invoke-WebRequest -Uri "https://github.com/hjson/hjson-go/releases/download/v$($ENV:HJSON_VERSION)/hjson_v$($ENV:HJSON_VERSION)_darwin_amd64.tar.gz" `
-            -OutFile "$outFile";
-        # Extract.
-        tar -xzf "$outFile" -C "$tmpDlsDir";
-        # Install as local dependency.
-        Move-Item -Path "$(Join-Path -Path "$tmpDlsDir" -ChildPath "hjson")" -Destination "$($ENV:HJSON_EXE)" -Force;
-    }
-    else
-    {
-        # Download file.
-        $outFile = Join-Path -Path "$tmpDlsDir" -ChildPath "hjson.zip";
-        Invoke-WebRequest -Uri "https://github.com/hjson/hjson-go/releases/download/v$($ENV:HJSON_VERSION)/hjson_v$($ENV:HJSON_VERSION)_windows_amd64.zip" `
-            -OutFile "$outFile";
-        # Extract.
-        Expand-Archive -Path "$outFile" -DestinationPath "$tmpDlsDir";
-        # Install as local dependency.
-        Move-Item -Path "$(Join-Path -Path "$tmpDlsDir" -ChildPath "hjson.exe")" -Destination "$($ENV:HJSON_EXE).exe" -Force;
+        # Remove current 'hjson' scripts, if any, and create it anew.
+        Remove-Item -Path "$HJSON_DIR" -Force -Recurse -ErrorAction 'SilentlyContinue';
+        New-Item -Path "$HJSON_DIR" -ItemType "Directory" -Force | Out-Null;
+
+        # Configure the repository for download and installation of the PowerShell Core scripts.
+        Write-Output "Installing hjson CLI tool '$HJSON_VERSION' in local environment...";
+        switch ($PLATFORM)
+        {
+            "linux-x64"
+            {
+                # Download file.
+                $outFile = Join-Path -Path "$tmpDlsDir" -ChildPath "hjson.tar.gz";
+                Invoke-WebRequest -OutFile "$outFile" `
+                    -Uri "https://github.com/hjson/hjson-go/releases/download/v${HJSON_VERSION}/hjson_v${HJSON_VERSION}_linux_amd64.tar.gz";
+                # Extract to temporary folder with downloads.
+                tar -xzf "$outFile" -C "$tmpDlsDir";
+                # Resolve binary filenames from source to destination, and deploy it.
+                $srcBinary = Join-Path -Path "$tmpDlsDir" -ChildPath "hjson";
+                $destBinary = Join-Path -Path "$HJSON_DIR" -ChildPath "hjson";
+                Move-Item -Path "$srcBinary" -Destination "$destBinary" -Force;
+                # Ensure files have proper permissions.
+                chmod +x "$destBinary";
+                # Resolve final directory for 'hjson' executable.
+                $HJSON_EXE = $destBinary;
+            }
+            "darwin-64"
+            {
+                # Download file.
+                $outFile = Join-Path -Path "$tmpDlsDir" -ChildPath "hjson.tar.gz";
+                Invoke-WebRequest -OutFile "$outFile" `
+                    -Uri "https://github.com/hjson/hjson-go/releases/download/v${HJSON_VERSION}/hjson_v${HJSON_VERSION}_linux_amd64.tar.gz";
+                # Extract to temporary folder with downloads.
+                tar -xzf "$outFile" -C "$tmpDlsDir";
+                # Resolve binary filenames from source to destination, and deploy it.
+                $srcBinary = Join-Path -Path "$tmpDlsDir" -ChildPath "hjson";
+                $destBinary = Join-Path -Path "$HJSON_DIR" -ChildPath "hjson";
+                Move-Item -Path "$srcBinary" -Destination "$destBinary" -Force;
+                # Ensure files have proper permissions.
+                chmod +x "$destBinary";
+                # Resolve final directory for 'hjson' executable.
+                $HJSON_EXE = $destBinary;
+            }
+            "win-x64"
+            {
+                # Download file.
+                $outFile = Join-Path -Path "$tmpDlsDir" -ChildPath "hjson.zip";
+                Invoke-WebRequest -OutFile "$outFile" `
+                    -Uri "https://github.com/hjson/hjson-go/releases/download/v${HJSON_VERSION}/hjson_v${HJSON_VERSION}_windows_amd64.zip";
+                # Extract to temporary folder with downloads.
+                Expand-Archive -Path "$outFile" -DestinationPath "$tmpDlsDir";
+                # Resolve binary filenames from source to destination, and deploy it.
+                $srcBinary = Join-Path -Path "$tmpDlsDir" -ChildPath "hjson.exe";
+                $destBinary = Join-Path -Path "$HJSON_DIR" -ChildPath "hjson.exe";
+                Move-Item -Path "$srcBinary" -Destination "$destBinary" -Force;
+                # Resolve final directory for 'hjson' executable.
+                $HJSON_EXE = $destBinary;
+            }
+            default { throw "Unable to install 'hjson' for platform '$PLATFORM'."; }
+        }
     }
 
     # Ensure installation completed successfully.
-    if (-not (Test-LocalDependencies))
+    if (-not (Test-LocalDependencies -Dependency "$Dependency"))
     {
-        throw "Installation of local dependencies failed."
+        throw "Installation of local dependency '$Dependency' in local environment failed."
     }
 
     # Report success in installation.
-    Write-Host "Installed local dependencies in local environment.";
+    Write-Output "Installed local dependency '$Dependency' in local environment.";
 }
 
-function Get-EnvironmentSnapshot
+function Resolve-EnvironmentVariable
 {
     <#
     .DESCRIPTION
-        Gets a snapshot of the current environment.
+        Resolves environment variables.
 
     .OUTPUTS
-        A snapshot of the current environment.
+        A hashtable with the items resolved from the YAML management environment file.
     #>
-    param()
-
-    # Create blank hash table.
-    $snapshot = @{};
-    # Fill with items of current environment.
-    Get-ChildItem ENV: | ForEach-Object { $snapshot[$_.Name] = $_.Value; }
-    # Return snapshot.
-    return $snapshot;
 }
 
-function Restore-EnvironmentSnapshot
+function Resolve-ManagementEnvironment
 {
     <#
     .DESCRIPTION
-        Restores the current environment from a given snapshot.
-
-    .PARAMETER Snapshot
-        The snapshot to fill the environment with.
-    #>
-    param(
-        [Parameter(Mandatory = $true)]
-        [HashTable]
-        $Snapshot
-    )
-
-    # Wipe the current environment.
-    Get-ChildItem ENV: | Remove-Item -Force;
-    # Fill the wiped environment from the snapshot.
-    foreach ($key in $Snapshot.Keys) { Set-Item "ENV:${key}" $Snapshot[$key]; }
-}
-
-function New-SortedFileSet
-{
-    <#
-    .DESCRIPTION
-        Returns a sorted file set per the following rules:
-
-    .PARAMETER Dir
-        The directory where to look for relevant files.
-
-    .PARAMETER FileSuffix
-        File suffix to capture, e.g. 'compose' for '000-.*-compose.yml'.
-
-    .PARAMETER FileExtension
-        File extension to capture, e.g. 'json' for '000-.*-settings.json'.
-
-    .PARAMETER FileSelectors
-        Comma delimited selectors to capture, e.g. 'dev,enc' for '000-.*-compose.dev.yml' and '000-.*-compose.enc.yml'.
+        Resolves the management environment.
 
     .OUTPUTS
-        An array with sorted paths to the relevant files found.
+        A hashtable with the items resolved from the YAML management environment file.
     #>
-    param(
-        [Parameter(Mandatory = $true)]
-        [String]
-        $Dir,
 
-        [Parameter(Mandatory = $true)]
-        [String]
-        $FileSuffix,
+    # Parse the management YAML file to a hash table.
+    $manageEnv = Get-Content -Path "$PWSH_MANAGE_ENV_LOCK_FILE" -Encoding "utf8" -Raw |
+        & "./.manage-env/local-deps/yq" --output-format json |
+        ConvertFrom-Json;
 
-        [Parameter(Mandatory = $true)]
-        [String]
-        $FileExtension,
+    # Resolve from environment.
 
-        [Parameter(Mandatory = $false)]
-        [String]
-        $FileSelectors = ""
-    )
+    # Resolve from
 
-    # If the destination directory does not exist, do not return any files.
-    if (-not (Test-Path -Path "$Dir" -PathType Container))
-    {
-        return @();
-    }
-
-    # Find sub-directories in the destination directory that meet the search criteria, and sort them.
-    $sortedSubDirs = Get-ChildItem -Path "$Dir" -Directory -Depth 0 |
-        Where-Object { $_.Name -match "^[0-9]{3}-.*" } |
-        Sort-Object -Property "Name" |
-        ForEach-Object { $_.FullName; };
-
-    # Find duplicate ordering in subdirectories.
-    $sortedSubDirs |
-        Split-Path -Leaf |
-        ForEach-Object { $_.Substring(0, 3); } |
-        Group-Object |
-        Where-Object { $_.Count -gt 1; } |
-        ForEach-Object { throw "Found sub-directory ordering duplicate numbering at '$Dir'."; }
-
-    # Loop the sorted sub-directories first, and then the main directory last, and fetch relevant files.
-    $allSortedFiles = @();
-    $escFileSuffix = [regex]::Escape($FileSuffix);
-    $escFileExtension = [regex]::Escape($FileExtension);
-    foreach ($scanDir in (@($sortedSubDirs) + @($Dir)))
-    {
-        # Find common files in the destination directory that meet the search criteria.
-        $sortedCommonFiles = Get-ChildItem -Path "$scanDir" -File -Depth 0 |
-            Where-Object { $_.Name -match "^[0-9]{3}-.*-$escFileSuffix\.$escFileExtension`$"; } |
-            ForEach-Object { $_.Name; };
-
-        # Find selected files in the destination directory that meet the search criteria.
-        $sortedSelectedFiles = $FileSelectors -split ',' |
-            ForEach-Object { $_.Trim(); } |
-            Where-Object { $_.Length -gt 0; } |
-            ForEach-Object {
-                $escFileSelector = [regex]::Escape($_);
-                Get-ChildItem -Path "$scanDir" -File -Depth 0 |
-                    Where-Object { $_.Name -match "^[0-9]{3}-.*-$escFileSuffix\.$escFileSelector\.$escFileExtension`$"; } |
-                    ForEach-Object { $_.Name; }
-                };
-
-        # Concatenate the common files and the sorted selected files for the folder, they will be sorted later.
-        $sortedFiles = @($sortedCommonFiles) + @($sortedSelectedFiles);
-
-        # Check if any relevant files were found.
-        if ($sortedFiles.Length -gt 0)
-        {
-            # Find duplicates within the same scan directory, if any.
-            $sortedFiles |
-                ForEach-Object { $_.Substring(0, 3); } |
-                Group-Object |
-                Where-Object { $_.Count -gt 1; } |
-                ForEach-Object { throw "Found file ordering duplicate numbering at '$scanDir'."; }
-
-            # Sort found files.
-            $sortedFiles = $sortedFiles |
-                Sort-Object |
-                ForEach-Object { Join-Path -Path "$scanDir" -ChildPath "$_"; };
-
-            # Add to all files.
-            $allSortedFiles += $sortedFiles;
-        }
-    };
-
-    return $allSortedFiles;
+    return $manageEnv;
 }
+
+
+
+
+
 
 # [Functions] ##########################################################################################################
 
 # [Execution] ##########################################################################################################
-# Determine if first call to the script based on the existence of the ROOT_DIR environment variable.
-$initialCall = -not (Test-Path ENV:ROOT_DIR);
-
-# If first call to the script, ensure manage environment and environment variables are provisioned.
-if ($initialCall)
-{
-    # Get a snapshot of the environment to restore it later.
-    $envSnapshot = Get-EnvironmentSnapshot;
-
-    # Create environment variables under which to run commands for script execution.
-    $ENV:ROOT_DIR = $ROOT_DIR;
-    $ENV:DEVCONTAINER_DIR = $DEVCONTAINER_DIR;
-    $ENV:VSCODE_DIR = $VSCODE_DIR;
-    $ENV:GIT_EXE = $GIT_EXE;
-    $ENV:DOCKER_EXE = $DOCKER_EXE;
-    $ENV:VSCODE_CLI_EXE = $VSCODE_CLI_EXE;
-    $ENV:VSCODE_DEV_CONTAINER_CLI_EXE = $VSCODE_DEV_CONTAINER_CLI_EXE;
-    $ENV:PWSH_EXE = $PWSH_EXE;
-    $ENV:PWSH_MANAGE_ENV_DIR = $PWSH_MANAGE_ENV_DIR;
-    $ENV:PWSH_MANAGE_TMP_DIR = $PWSH_MANAGE_TMP_DIR;
-    $ENV:PWSH_MANAGE_DEP_DIR = $PWSH_MANAGE_DEP_DIR;
-    $ENV:PWSH_MANAGE_MAIN_SCRIPT = $PWSH_MANAGE_MAIN_SCRIPT;
-    $ENV:PWSH_SCRIPTS_VERSION = $PWSH_SCRIPTS_VERSION;
-    $ENV:PWSH_SCRIPTS_DIR = $PWSH_SCRIPTS_DIR;
-    $ENV:YQ_EXE = $YQ_EXE;
-    $ENV:YQ_VERSION = $YQ_VERSION;
-    $ENV:HJSON_EXE = $HJSON_EXE;
-    $ENV:HJSON_VERSION = $HJSON_VERSION;
-    $ENV:BAKE_PROJECT_NAME = $DOCKER_BAKE_PROJECT_NAME;
-    $ENV:BAKE_IMAGE_LOCAL_REGISTRY = $DOCKER_BAKE_IMAGE_LOCAL_REGISTRY;
-    $ENV:COMPOSE_PROJECT_NAME = $DOCKER_COMPOSE_PROJECT_NAME;
-
-    # Ensure temporary directory is removed and created anew.
-    Remove-Item -Path "$PWSH_MANAGE_TMP_DIR" -Force -Recurse -ErrorAction 'SilentlyContinue';
-    New-Item "$PWSH_MANAGE_TMP_DIR" -ItemType Directory -Force | Out-Null;
-}
-
 try
 {
     # Ensure the local dependencies are installed.
     Install-LocalDependencies;
 
     # Ensure the minimal modules are imported.
-    Import-Module -Name "$($ENV:PWSH_SCRIPTS_DIR)/modules/commons.psm1" -Force -Function Write-Log;
+    Import-Module -Name "$PWSH_SCRIPTS_DIR/modules/commons.psm1" -Force `
+        -Function Get-EnvironmentSnapshot `
+        -Function Restore-EnvironmentSnapshot `
+        -Function Get-OrderedFileSet `
+        -Function Write-Log;
+
+    # Get a snapshot of the environment to restore it later.
+    $envSnapshot = Get-EnvironmentSnapshot;
+
+    # Resolve the locked management environment configuration YAML file.
+    $MANAGE_ENV_CFG = Resolve-ManagementEnvironment;
+
+    # Create environment variables under which to run commands for script execution.
+    # $ENV:ROOT_DIR = $ROOT_DIR;
+    # $ENV:DEVCONTAINER_DIR = $DEVCONTAINER_DIR;
+    # $ENV:VSCODE_DIR = $VSCODE_DIR;
+    # $ENV:GIT_EXE = $GIT_EXE;
+    # $ENV:DOCKER_EXE = $DOCKER_EXE;
+    # $ENV:VSCODE_CLI_EXE = $VSCODE_CLI_EXE;
+    # $ENV:VSCODE_DEV_CONTAINER_CLI_EXE = $VSCODE_DEV_CONTAINER_CLI_EXE;
+    # $ENV:PWSH_EXE = $PWSH_EXE;
+    # $ENV:PWSH_MANAGE_ENV_DIR = $PWSH_MANAGE_ENV_DIR;
+    # $ENV:PWSH_MANAGE_TMP_DIR = $PWSH_MANAGE_TMP_DIR;
+    # $ENV:PWSH_MANAGE_DEP_DIR = $PWSH_MANAGE_DEP_DIR;
+    # $ENV:PWSH_MANAGE_MAIN_SCRIPT = $PWSH_MANAGE_MAIN_SCRIPT;
+    # $ENV:PWSH_SCRIPTS_VERSION = $PWSH_SCRIPTS_VERSION;
+    # $ENV:PWSH_SCRIPTS_DIR = $PWSH_SCRIPTS_DIR;
+    # $ENV:YQ_EXE = $YQ_EXE;
+    # $ENV:YQ_VERSION = $YQ_VERSION;
+    # $ENV:HJSON_EXE = $HJSON_EXE;
+    # $ENV:HJSON_VERSION = $HJSON_VERSION;
+    # $ENV:BAKE_PROJECT_NAME = $DOCKER_BAKE_PROJECT_NAME;
+    # $ENV:BAKE_IMAGE_LOCAL_REGISTRY = $DOCKER_BAKE_IMAGE_LOCAL_REGISTRY;
+    # $ENV:COMPOSE_PROJECT_NAME = $DOCKER_COMPOSE_PROJECT_NAME;
+
+    # Ensure temporary directory is removed and created anew.
+    Remove-Item -Path "$PWSH_MANAGE_ENV_TMP_DIR" -Force -Recurse -ErrorAction 'SilentlyContinue';
+    New-Item "$PWSH_MANAGE_ENV_TMP_DIR" -ItemType Directory -Force | Out-Null;
 
     # Check if running logic per application commands.
-    if ($PSBoundParameters.ContainsKey("Script"))
+    if ($PSBoundParameters.ContainsKey("Module"))
     {
-        # Check that application management script exists.
-        $appScriptPath = Join-Path -Path "$ROOT_DIR" -ChildPath "manage.$Script.ps1";
-        if (-not (Test-Path -Path "$appScriptPath"))
-        {
-            throw "No application management script 'manage.$Script.ps1' found.";
-        }
-
-        # Remove the unbound collection of parameters from the bound parameters if it exists.
-        $PSBoundParameters.Remove("PSUnboundParameters") | Out-Null;
-        # Remove the bound application management script ID from the bound parameters if it exists.
-        $PSBoundParameters.Remove("Script") | Out-Null;
-
-        # Execute each of application scripts found, forwarding the bound and unbound parameters.
-        & "$($ENV:PWSH_EXE)" -File "$appScriptPath" @PSBoundParameters @PSUnboundParameters;
+        # TODO: Do this with modules, rather than files.
     }
     # Check if running logic per main commands.
-    elseif ($Command -eq "pwsh-load")
-    {
-        Write-Log "Importing PowerShell modules...";
-
-        # Import only the modules in the first level directory, considered the main ones.
-        Get-ChildItem -Path "$($ENV:PWSH_SCRIPTS_DIR)/modules" -Filter "*.psm1" -File | ForEach-Object {
-            Import-Module -Name "$($_.FullName)" -Force;
-        };
-
-        Write-Log "PowerShell modules imported." "Success";
-    }
     elseif ($Command -eq "git")
     {
         Write-Log "Executing Git...";
@@ -756,12 +719,12 @@ try
 }
 finally
 {
-    if ($initialCall)
-    {
-        # Ensure temporary directory is removed.
-        Remove-Item -Path "$PWSH_MANAGE_TMP_DIR" -Force -Recurse -ErrorAction 'SilentlyContinue';
+    # Ensure temporary directory is removed.
+    Remove-Item -Path "$PWSH_MANAGE_ENV_TMP_DIR" -Force -Recurse -ErrorAction 'SilentlyContinue';
 
-        # Restore environment to original.
+    # Restore environment to original, if it did not fail before importing the functions.
+    if (Get-Command Restore-EnvironmentSnapshot -ErrorAction "SilentlyContinue")
+    {
         Restore-EnvironmentSnapshot -Snapshot $envSnapshot;
     }
 }

@@ -23,7 +23,7 @@ function New-CommonAPIGeneration
         Given a series of folders with Franca Interface Definition Language, '.fidl', and Franca Deployment, '.fdepl',
         files, runs the Common API C++ generators on them to produce generated source code.
 
-        A first pass generates source code from the '.fidl' files with the Core generator. There must be at least 
+        A first pass generates source code from the '.fidl' files with the Core generator. There must be at least
         one '.fidl' file in the folder specified.
 
         A second pass generates source code from the '.fidl' and '.dbus.fdepl' files with the DBus generator. There
@@ -51,12 +51,6 @@ function New-CommonAPIGeneration
 
     .PARAMETER SomeIPGenerator
         Path to the 'commonapi-someip-generator' executable, can be NULL if not used.
-
-    .EXAMPLE
-        New-CommonAPIGeneration -Inputs $fidlObjects `
-            -CoreGenerator 'commonapi-core-generator' `
-            -DBusGenerator 'commonapi-dbus-generator' `
-            -SomeIPGenerator 'commonapi-someip-generator';
     #>
     param(
         [Parameter(Mandatory = $true)]
@@ -141,7 +135,7 @@ function New-CommonAPIGeneration
 
                     # Fill temporary folder with '.fidl' and '.dbus.fdepl' files.
                     ($fidlFiles + $fdeplDBusFiles) | ForEach-Object {
-                        $filename = (Split-Path -Path $_ -Leaf) -Replace '.dbus.fdepl', '.fdepl';
+                        $filename = (Split-Path -Path $_ -Leaf) -replace '.dbus.fdepl', '.fdepl';
                         Copy-Item -Path "$($_)" -Destination "$($tempFolder)/$($filename)";
                         Write-Log "Using file '$($_)' for dbus generator...";
                     };
@@ -170,7 +164,7 @@ function New-CommonAPIGeneration
 
                     # Fill temporary folder with '.fidl' and '.someip.fdepl' files.
                     ($fidlFiles + $fdeplSomeIPFiles) | ForEach-Object {
-                        $filename = (Split-Path -Path $_ -Leaf) -Replace '.someip.fdepl', '.fdepl';
+                        $filename = (Split-Path -Path $_ -Leaf) -replace '.someip.fdepl', '.fdepl';
                         Copy-Item -Path "$($_)" -Destination "$($tempFolder)/$($filename)";
                         Write-Log "Using file '$($_)' for someip generator...";
                     };

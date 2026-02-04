@@ -29,12 +29,8 @@ readonly PWSH_VERSION_MAJOR_MIN=$(echo "${PWSH_VERSION_MIN}" | cut -d '.' -f '1'
 # Minor version number of the minimum PowerShell Core version.
 # shellcheck disable=SC2155
 readonly PWSH_VERSION_MINOR_MIN=$(echo "${PWSH_VERSION_MIN}" | cut -d '.' -f '2');
-# Path to the system PowerShell Core executable.
-readonly PWSH_SYSTEM_EXE='pwsh';
 # Path to the local PowerShell Core directory.
 readonly PWSH_LOCAL_DIR="${PWSH_MANAGE_ENV_DIR}/pwsh-local";
-# Path to the local PowerShell Core executable.
-readonly PWSH_LOCAL_EXE="${PWSH_LOCAL_DIR}/pwsh";
 
 # [Internal Functions] #################################################################################################
 # @brief Obtains details of the environment running the scripts.
@@ -64,7 +60,7 @@ function Get-Platform()
 }
 
 # @brief Gets a version of a management environment from the YAML file, without parsing it.
-# @param $1 Path to the management configuration YAML file. Can be an absolute path or a relative path.
+# @param $1 Path to the management configuration YAML file.
 # @return A string with the version, or an empty string if it was not posible to find one.
 function Get-EnvironmentVersion()
 {
@@ -85,18 +81,12 @@ function Get-EnvironmentVersion()
 }
 
 # @brief Installs the local management environment for the given version.
+# @param $1 Version as read from the management environment configuration YAML file.
 function Install-ManagementEnvironment()
 {
-    # Get version of target environment and ensure one exists.
-    local -r targetVersion=$(Get-EnvironmentVersion "${PWSH_MANAGE_ENV_YAML_FILE}");
-    if [[ -z "$targetVersion" ]]; then
-        echo "Unable to determine management environment version from YAML file." >&2;
-        exit 1;
-    fi
-
     # Get version of locked environment, if there is a version mismatch, recreate the environment entirely.
     lockVersion=$(Get-EnvironmentVersion "${PWSH_MANAGE_ENV_LOCK_FILE}");
-    if [[ "${targetVersion}" == "${lockVersion}" ]]; then
+    if [[ "${1}" == "${lockVersion}" ]]; then
         return;
     fi
 
@@ -105,41 +95,36 @@ function Install-ManagementEnvironment()
     mkdir -p "${PWSH_MANAGE_ENV_DIR}";
 
     # Log start of installation.
-    echo "Installing local management environment '${targetVersion}'...";
-
-    # Ensure we are running in a known platform.
-    local -r platform=$(Get-Platform);
-    if [[ -z "${platform}" ]]; then
-        echo "The platform is not supported.";
-        exit 1;
-    fi
+    echo "Installing local management environment '${1}'...";
 
     # Download the local main management script file and install it in the folder.
-    curl -Lfo "${PWSH_MANAGE_ENV_MAIN_SCRIPT_FILE}" "https://raw.githubusercontent.com/dmg0345/powershell_scripts/${targetVersion}/manage.main.ps1";
+    curl -Lfo "${PWSH_MANAGE_ENV_MAIN_SCRIPT_FILE}" \
+        "https://raw.githubusercontent.com/dmg0345/powershell_scripts/${1}/manage.main.ps1";
 
     # Lock version with the contents of the original YAML.
     cat "${PWSH_MANAGE_ENV_YAML_FILE}" > "${PWSH_MANAGE_ENV_LOCK_FILE}";
-
-    # Fill additional information in the lock file.
-    echo "platform: '${platform}'" >> "${PWSH_MANAGE_ENV_LOCK_FILE}";
 
     # Report success in installation.
     echo "Installed local management environment.";
 }
 
 # @brief Determines if the PowerShell Core given is available and satisfies version requirements.
-# @param $1 Path to the 'pwsh' executable to test. Can be an absolute path or a relative path.
+# @param $1 Path to the 'pwsh' executable to test.
 # @return 0 if the system PowerShell Core is available and ready for use and 1 if otherwise.
 # shellcheck disable=SC2312,SC2016
 function Test-Pwsh()
 {
-    # Get the current major version number of the system PowerShell Core available, and check against minimum.
-    local -r cMajor=$("$1" -NoLogo -Command '$PSVersionTable.PSVersion.Major.ToString()' 2>/dev/null);
-    if [[ ${cMajor} -ge ${PWSH_VERSION_MAJOR_MIN} ]]; then
-        # Get the current minor version number of the system PowerShell Core available, and check against minimum.
-        local -r cMinor=$("$1" -NoLogo -Command '$PSVersionTable.PSVersion.Minor.ToString()' 2>/dev/null);
-        if [[ ${cMinor} -ge ${PWSH_VERSION_MINOR_MIN} ]]; then
-            return 0;
+    # Ensure the path exists and it can be executed.
+    if [[ -x "${1}" ]]; then
+        # Get the current major / minor version numbers of the PowerShell Core given.
+        local -r cMajor=$("${1}" -NoLogo -Command '$PSVersionTable.PSVersion.Major.ToString()' 2>/dev/null);
+        local -r cMinor=$("${1}" -NoLogo -Command '$PSVersionTable.PSVersion.Minor.ToString()' 2>/dev/null);
+        # Perform version check comparison against minimum major and minor version numbers.
+        if [[
+            (${cMajor} -gt ${PWSH_VERSION_MAJOR_MIN}) ||
+            ((${cMajor} -eq ${PWSH_VERSION_MAJOR_MIN}) && (${cMinor} -ge ${PWSH_VERSION_MINOR_MIN}))
+        ]]; then
+                return 0;
         fi
     fi
 
@@ -151,11 +136,6 @@ function Test-Pwsh()
 # shellcheck disable=SC2310
 function Install-LocalPwsh()
 {
-    # Check if local PowerShell Core is already installed, and in that case do nothing.
-    if Test-Pwsh "${PWSH_LOCAL_EXE}"; then
-        return;
-    fi
-
     # Log start of installation.
     echo "Installing local PowerShell Core '${PWSH_VERSION_MIN}' in local environment...";
 
@@ -177,6 +157,8 @@ function Install-LocalPwsh()
         curl -Lfo "${outputFilePath}" "${downloadPath}";
         # Untar and install.
         tar -xzf "${outputFilePath}" -C "${PWSH_LOCAL_DIR}";
+        # Ensure proper permissions are set on relevant files.
+        chmod +x "$PWSH_LOCAL_DIR/pwsh";
     elif [[ ${platform} == "darwin-x64" ]]; then
         # Set correct variables for MacOS x64.
         downloadPath="${downloadPath}/powershell-${PWSH_VERSION_MIN}-osx-x64.tar.gz";
@@ -186,6 +168,8 @@ function Install-LocalPwsh()
         curl -Lfo "${outputFilePath}" "${downloadPath}";
         # Untar and install.
         tar -xzf "${outputFilePath}" -C "${PWSH_LOCAL_DIR}";
+        # Ensure proper permissions are set on relevant files.
+        chmod +x "$PWSH_LOCAL_DIR/pwsh";
     elif [[ ${platform} == "win-x64" ]]; then
         # Set correct variables for Windows x64.
         downloadPath="${downloadPath}/PowerShell-${PWSH_VERSION_MIN}-win-x64.zip";
@@ -200,11 +184,6 @@ function Install-LocalPwsh()
         exit 1;
     fi
 
-    # Ensure installation completed successfully.
-    if ! Test-Pwsh "${PWSH_LOCAL_EXE}"; then
-        echo "Installation of local PowerShell Core failed." >&2;
-        exit 1;
-    fi
 
     # On success, do not wait for the trap to remove the temporary download, remove it ASAP.
     rm -f "${outputFilePath}";
@@ -224,20 +203,56 @@ if [[ $(realpath "$(dirname "$0")") != $(realpath "$(pwd)") ]]; then
     exit 1;
 fi
 
+# Get version of target environment and ensure one exists.
+targetVersion=$(Get-EnvironmentVersion "${PWSH_MANAGE_ENV_YAML_FILE}");
+if [[ -z "$targetVersion" ]]; then
+    echo "Unable to determine management environment version from YAML file." >&2;
+    exit 1;
+fi
+
+# Ensure we are running in a known and supported platform.
+platform=$(Get-Platform);
+if [[ -z "${platform}" ]]; then
+    echo "The platform is not supported in management environment.";
+    exit 1;
+fi
+
 # Install the management environment.
-Install-ManagementEnvironment;
+Install-ManagementEnvironment "${targetVersion}";
+
+# Resolve paths to system PowerShell Core executable in PATH, and local PowerShell Core executable.
+if [[ $platform == "win-x64" ]]; then
+    systemPwshExe=$(command -v "pwsh.exe");
+    localPwshExe="${PWSH_LOCAL_DIR}/pwsh.exe";
+elif [[ $platform == "linux-x64" || $platform == "darwin-x64" ]]; then
+    systemPwshExe=$(command -v "pwsh");
+    localPwshExe="${PWSH_LOCAL_DIR}/pwsh";
+fi
 
 # Determine if using system PowerShell Core or local PowerShell core.
 # shellcheck disable=SC2310
-if Test-Pwsh "${PWSH_SYSTEM_EXE}"; then
-    pwshPath="${PWSH_SYSTEM_EXE}"
+if Test-Pwsh "${systemPwshExe}"; then
+    # Use system PowerShell Core as it satisfies minimum requirements.
+    pwshPath="${systemPwshExe}"
 else
-    # Ensure local PowerShell is installed.
-    Install-LocalPwsh;
+    if ! Test-Pwsh "${localPwshExe}"; then
+        # Ensure local PowerShell is installed.
+        Install-LocalPwsh;
 
-    # Delegate execution of application management script to local PowerShell and exit with its error code.
-    pwshPath="${PWSH_LOCAL_EXE}";
+        # Ensure the installation completed successfully.
+        if ! Test-Pwsh "${localPwshExe}"; then
+            echo "Installation of local PowerShell Core failed." >&2;
+            exit 1;
+        fi
+    fi
+
+    # Use local PowerShell Core as the system PowerShell Core does not satisfy minimum requirements.
+    pwshPath="${localPwshExe}";
 fi
 
-# Delegate execution of application management script to PowerShell Core and exit with its error code.
-"${pwshPath}" -File "${PWSH_MANAGE_ENV_MAIN_SCRIPT_FILE}" "$@";
+# Delegate further execution to PowerShell Core and exit with its error code.
+"${pwshPath}" -File "${PWSH_MANAGE_ENV_MAIN_SCRIPT_FILE}" \
+    -ManagementEnvironmentPwsh "${pwshPath}" \
+    -ManagementEnvironmentVersion "${targetVersion}" \
+    -ManagementEnvironmentPlatform "${platform}" \
+    "$@";

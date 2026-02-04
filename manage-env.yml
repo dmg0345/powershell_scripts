@@ -1,1 +1,37 @@
 version: 'feature/bootstrap'
+
+schema-version: 'v1'
+
+# All paths relative to the ROOT directory.
+
+# Configurations settings for 'docker-*' commands.
+docker:
+  default:
+    bake:
+      pass:
+    compose:
+      pass:
+
+# Configurations settings for 'vscode-*' commands.
+vscode:
+  default:
+    settings:
+      commons-dir:
+        mode: 'none' # 'none', 'common', 'select', 'both'
+        path: '' # Path to directory, defaults to internal.
+        selectors: []
+      project-dir:
+        mode: 'm'
+      output-path:
+
+# Map of keys to add to the environment for all commands.
+environment:
+  default:
+    VAR_1:
+      name: "ENV_VAR_NAME"
+      value: "HELLO_WORLD"
+    VAR_2:
+      name: "NAME_ENV_VAR"
+      file: ""
+    VAR_3:
+      file: ""

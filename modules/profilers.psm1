@@ -67,7 +67,7 @@ function Start-LineProfiler
 
     # Configure time units.
     $timeUnits = "1e-6";
-    if ($PSBoundParameters.ContainsKey("CppCheckC2012RulesFile"))
+    if ($PSBoundParameters.ContainsKey("TimeUnits"))
     {
         $timeUnits = $TimeUnits;
     }
