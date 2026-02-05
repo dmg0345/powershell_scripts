@@ -22,6 +22,12 @@ Git CLI
 
 `Git Command Line Interface <https://git-scm.com>`_ can be installed from the `Git Official Website <https://git-scm.com/install/>`_. No GUI client is required.
 
+Verify that `git` is installed and available in the `PATH` environment variable:
+
+.. code-block:: powershell
+
+  PS > git --version
+
 Docker CLI
 ~~~~~~~~~~
 
@@ -35,6 +41,13 @@ Docker CLI
     - The official Docker product with a more `restrictive license <https://docs.docker.com/subscription/desktop-license/>`_.
 
 Both of the alternatives also provide a GUI along with the CLI utilities.
+
+Verify that `docker` is installed and available in the `PATH` environment variable:
+
+.. code-block:: powershell
+
+  PS > docker version
+  PS > docker compose version
 
 Windows Subsystem for Linux (WSL)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -110,6 +123,13 @@ The recommended `User Settings <https://code.visualstudio.com/docs/configure/set
 If encountering issues, delete the existing installation of `Visual Studio Code` and perform a
 `clean uninstall <https://code.visualstudio.com/docs/setup/uninstall#_clean-uninstall>`_.
 This process will remove all extensions and user settings. Afterwards, install Visual Studio Code from scratch.
+
+Verify that `code` and `devcontainer` are installed and available in the `PATH` environment variable:
+
+.. code-block:: powershell
+
+  PS > code --version
+  PS > devcontainer --version
 
 Note that framework delegates image building to `Docker Bake` and service orchestration to `Docker Compose`.
 In terms of `Dev Containers`, Visual Studio Code simply attaches to an existing provisioned service.
