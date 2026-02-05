@@ -43,6 +43,7 @@
     "powershell.integratedConsole.showOnStartup": true,
     "powershell.integratedConsole.startLocation": "Panel",
     "powershell.integratedConsole.suppressStartupBanner": true,
+    "powershell.integratedConsole.startInBackground": true,
     // Ensure starting as login shells.
     "powershell.startAsLoginShell.linux": true,
     "powershell.startAsLoginShell.osx": true

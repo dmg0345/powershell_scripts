@@ -1,0 +1,28 @@
+// Visual Studio Code Dev Container commons JSON file, for details refer to:
+//  - https://containers.dev/implementors/json_reference/
+//  - https://containers.dev/supporting
+//  - https://containers.dev/supporting#dev-containers-cli
+//  - https://containers.dev/implementors/spec/#devcontainerjson
+// Do not edit manually — changes will be overwritten.
+{
+    // Point towards Docker Compose file with the 'dev-container' sentinel service to attach to.
+    "dockerComposeFile": "000-commons/100-vscode-docker-compose.yml",
+    "service": "dev-container",
+    "workspaceFolder": "/dev-container-volume/vscode-workspace",
+    // Disable all actions from the devcontainer, rely on Docker Bake and Docker Compose files.
+    "shutdownAction": "none",
+    "overrideCommand": false,
+    "mounts": [],
+    "runServices": [],
+    "workspaceMount": "",
+    // Do not run anything in any of the lifecycle hooks.
+    "initializeCommand": {},
+    "onCreateCommand": {},
+    "updateContentCommand": {},
+    "postCreateCommand": {},
+    "postStartCommand": {},
+    "postAttachCommand": {},
+    // Users to use for from-the-host and from-the-container actions, the same user.
+    "remoteUser": "devuser",
+    "containerUser": "devuser"
+}

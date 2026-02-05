@@ -24,6 +24,12 @@ vscode:
         mode: 'm'
       output-path:
 
+pss-script-analyzer:
+
+
+shellcheck:
+
+
 # Map of keys to add to the environment for all commands.
 environment:
   default:
