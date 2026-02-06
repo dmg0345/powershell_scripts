@@ -22,7 +22,7 @@ Git CLI
 
 `Git Command Line Interface <https://git-scm.com>`_ can be installed from the `Git Official Website <https://git-scm.com/install/>`_. No GUI client is required.
 
-Verify that `git` is installed and available in the `PATH` environment variable:
+Verify that `git` is installed:
 
 .. code-block:: powershell
 
@@ -42,7 +42,7 @@ Docker CLI
 
 Both of the alternatives also provide a GUI along with the CLI utilities.
 
-Verify that `docker` is installed and available in the `PATH` environment variable:
+Verify that `docker`:
 
 .. code-block:: powershell
 
@@ -124,7 +124,7 @@ If encountering issues, delete the existing installation of `Visual Studio Code`
 `clean uninstall <https://code.visualstudio.com/docs/setup/uninstall#_clean-uninstall>`_.
 This process will remove all extensions and user settings. Afterwards, install Visual Studio Code from scratch.
 
-Verify that `code` and `devcontainer` are installed and available in the `PATH` environment variable:
+Verify that `code` and `devcontainer` are installed:
 
 .. code-block:: powershell
 

@@ -1,4 +1,4 @@
-# Commons for Services Docker Compose Extensions File, for details, refer to: 
+# Commons for Services Docker Compose Extensions File, for details, refer to:
 #   - https://docs.docker.com/compose/compose-file/
 # Do not edit manually — changes will be overwritten.
 
@@ -64,7 +64,7 @@ x-service-volumes-dev-container: &service-volumes-dev-container !override
   source: dev-container
   target: /dev-container-volume # Fixed path where to mount the volume in the container.
   read_only: false # Allow read and write access to the volume from the container.
-  volume: 
+  volume:
     nocopy: true # On mount, do not initialize volume from container data, initialize volume directly.
 
 # Base service for '/services/<service>' map.

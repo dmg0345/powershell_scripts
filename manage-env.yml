@@ -2,42 +2,40 @@ version: 'feature/bootstrap'
 
 schema-version: 'v1'
 
-# All paths relative to the ROOT directory.
-
-# Configurations settings for 'docker-*' commands.
-docker:
+profiles:
   default:
-    bake:
-      pass:
-    compose:
-      pass:
+    docker:
+      cli: 'docker'
+      project-name: "ASDF"
+      bake:
+        user-configs-dir: ""
+        config-selectors: []
+        image-registry: ""
+        image-local-registry: ""
+      compose:
+        user-configs-dir: ""
+        config-selectors: []
 
-# Configurations settings for 'vscode-*' commands.
-vscode:
-  default:
-    settings:
-      commons-dir:
-        mode: 'none' # 'none', 'common', 'select', 'both'
-        path: '' # Path to directory, defaults to internal.
-        selectors: []
-      project-dir:
-        mode: 'm'
-      output-path:
+    vscode:
+      cli: 'code'
+      settings:
+        user-configs-dir: ""
+        config-selectors: []
+        deployment-file: /path/to/settings.json
+      dev-container-settings:
+        cli: 'devcontainer'
+        user-configs-dir: ""
+        config-selectors: []
+        deployment-file: /path/to/devcontainer.json
 
-pss-script-analyzer:
-
-
-shellcheck:
-
-
-# Map of keys to add to the environment for all commands.
-environment:
-  default:
-    VAR_1:
-      name: "ENV_VAR_NAME"
-      value: "HELLO_WORLD"
-    VAR_2:
-      name: "NAME_ENV_VAR"
-      file: ""
-    VAR_3:
-      file: ""
+    dev-container:
+      git:
+        username: strenv(GIT_USERNAME)
+        email: strenv(GIT_EMAIL)
+        ssh-sign-key-file: strenv(GIT_SSH_SIGN_KEY_FILE)
+      github:
+        username: strenv(GITHUB_USERNAME)
+        ssh-auth-key-file: strenv(GITHUB_SSH_AUTH_KEY_FILE)
+      vnc-server:
+        password: '012345'
+        geometry: '1920x1080'

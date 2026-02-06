@@ -8,9 +8,14 @@
 # [Initializations] ####################################################################################################
 [CmdletBinding(PositionalBinding = $false)]
 param (
+    # The profile to use for the management environment.
+    [Parameter(Mandatory = $false)]
+    [Alias("p")]
+    [String]
+    $Profile = "default",
+
     # Main command to execute, one of:
-    #   - 'git': Host/Container command, forwards the script arguments to Git along with other relevant arguments.
-    #   - 'git-clean': Host/Container command, recursively cleans the repository and submodules with Git.
+    #   - 'version': Prints the version of the management environment to the standard output.
     #   - 'docker': Host command, forwards the script arguments to Docker along with other relevant arguments.
     #   - 'docker-print': Host command, prints details about networks, images, volumes, containers...
     #   - 'docker-clean': Host command, cleans stopped containers, unused images and networks, anonymous volumes and builder cache.
@@ -26,17 +31,13 @@ param (
     #   - 'docker-compose-start <service|dev-container>': Host command, starts the created containers if they were stopped.
     #   - 'docker-compose-stop <service|dev-container>': Host command, stops the started containers if they were started.
     #   - 'docker-compose-destroy <service|dev-container>': Host command, stops and removes the Docker Compose resources, except volumes.
-    #   - 'vscode': Host command, forwards the script arguments to Visual Studio Code CLI along with other relevant arguments.
-    #   - 'vscode-devcontainer': Host command, forwards the script arguments to Visual Studio Code Dev Container CLI along with other relevant arguments.
-    #   - 'vscode-devcontainer-open': Host command, forwards the script arguments to Visual Studio Code Dev Container CLI along with other relevant arguments.
+    #   - 'vscode-sync': Host command, forwards the script arguments to Visual Studio Code Dev Container CLI along with other relevant arguments.
+    #   - 'vscode-launch': Host command, forwards the script arguments to Visual Studio Code Dev Container CLI along with other relevant arguments.
     # Any other command line argument combination is redirected towards the management application script.
     [Parameter(Mandatory = $false)]
     [Alias("c")]
     [String]
     $Command = "",
-
-    # TODO: A config parameter that loads details from the YAML file per command, uses 'default'.
-    # TODO: A config parameter that loads environment from the YAML file for al commands, uses 'default'.
 
     # Target for 'docker-bake-*' related commands.
     [Parameter(Mandatory = $false)]
@@ -60,7 +61,7 @@ param (
     [String]
     $ManagementEnvironmentPwsh,
 
-    # Mandatory parameter with the manage environment version as resolved by the bootstrap script.
+    # Mandatory parameter with the management environment version as resolved by the bootstrap script.
     [Parameter(Mandatory = $true)]
     [String]
     $ManagementEnvironmentVersion,
@@ -88,21 +89,6 @@ $ProgressPreference = 'SilentlyContinue';
 $PLATFORM = $ManageEnvironmentPlatform;
 # Path to the root directory where the bootstrap scripts are located, must match the bootstrap scripts.
 $ROOT_DIR = Resolve-Path -Path (Join-Path -Path "$PSScriptRoot" -ChildPath "..").Path;
-# Path to '.devcontainer' directory, can be overriden via '/vscode/<config>/devcontainer'.
-$DEVCONTAINER_DIR = Join-Path -Path "$ROOT_DIR" -ChildPath ".devcontainer";
-# Path to '.vscode' directory, can be overriden via '/vscode/<config>/settings'.
-$VSCODE_DIR = Join-Path -Path "$ROOT_DIR" -ChildPath ".vscode";
-
-# Path to the PowerShell Core executable.
-$PWSH_EXE = $ManageEnvironmentPwsh;
-# Path to the Git executable, must exist in PATH.
-$GIT_EXE = (Get-Command -Name "git" -ErrorAction "SilentlyContinue").Source ?? "git";
-# Path to the Docker executable, must exist in PATH.
-$DOCKER_EXE = (Get-Command -Name "docker" -ErrorAction "SilentlyContinue").Source ?? "docker";
-# Path to the Visual Studio Code CLI executable, must exist in PATH.
-$VSCODE_EXE = (Get-Command -Name "code" -ErrorAction "SilentlyContinue").Source ?? "code";
-# Path to the Visual Studio Code DevContainer CLI executable, must exist in PATH.
-$VSCODE_DEVCONTAINER_EXE = (Get-Command -Name "devcontainer" -ErrorAction "SilentlyContinue").Source ?? "devcontainer";
 
 # Path to the PowerShell Core management environment directory, must match the bootstrap scripts.
 $PWSH_MANAGE_ENV_DIR = Join-Path -Path "$ROOT_DIR" -ChildPath ".manage-env";
@@ -110,38 +96,95 @@ $PWSH_MANAGE_ENV_DIR = Join-Path -Path "$ROOT_DIR" -ChildPath ".manage-env";
 $PWSH_MANAGE_ENV_TMP_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "tmp-dir";
 # Path to a directory with the local dependencies.
 $PWSH_MANAGE_ENV_DEP_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "local-deps";
-# Path to the PowerShell Core main management script file (this script), must match the bootstrap scripts.
-$PWSH_MANAGE_ENV_MAIN_SCRIPT_FILE = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "manage.main.ps1";
 # Path to the locked management environment configuration YAML file, must match the bootstrap scripts.
 $PWSH_MANAGE_ENV_LOCK_FILE = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "manage-env.lock.yml";
 
-# PowerShell Core scripts local dependency pinned version.
+# PowerShell Core scripts local dependency pinned version,as resolved by the bootstrap scripts.
 $PWSH_SCRIPTS_VERSION = $ManageEnvironmentVersion;
 # Path to the PowerShell Core scripts local dependency directory.
 $PWSH_SCRIPTS_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DEP_DIR" -ChildPath "pwsh-scripts";
-# 'yq' CLI utility local dependency pinned version.
-$YQ_VERSION = "4.50.1";
+# Path to the PowerShell Core scripts PowerShell modules directory.
+$PWSH_SCRIPTS_MODULES_DIR = Join-Path -Path "$PWSH_SCRIPTS_DIR" -ChildPath "modules";
+# Path to the PowerShell Core scripts common configurations directory.
+$PWSH_SCRIPTS_COMMON_CONFIGS_DIR = Join-Path -Path "$PWSH_SCRIPTS_DIR" -ChildPath "configs";
+# Path to the PowerShell Core scripts user configurations directory.
+$PWSH_SCRIPTS_USER_CONFIGS_DIR = Join-Path -Path "$ROOT_DIR" -ChildPath ".manage-env-configs";
+# Path to the PowerShell Core scripts lock file.
+$PWSH_SCRIPTS_LOCK_FILE = Join-Path -Path "$PWSH_SCRIPTS_DIR" -ChildPath ".lock";
+
+# Path to the PowerShell Core executable, as resolved by the bootstrap script.
+$PWSH_EXE = $ManageEnvironmentPwsh;
+
+# Path to the 'yq' CLI utility local dependency, resolved at runtime.
+$YQ_EXE = $null;
 # Path to the 'yq' CLI utility local dependency installation directory.
 $YQ_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DEP_DIR" -ChildPath "yq";
-# Path to the 'yq' CLI utility local dependency, resolved when installed.
-$YQ_EXE = $null;
-# 'hjson' CLI utility local dependency pinned version.
-$HJSON_VERSION = "4.6.0";
+# 'yq' CLI utility local dependency pinned version.
+$YQ_VERSION = "4.50.1";
+
+# Path to the 'hjson' CLI utility local dependency, resolved at runtime.
+$HJSON_EXE = $null;
 # Path to the 'hjson' CLI utility local dependency installation directory.
 $HJSON_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DEP_DIR" -ChildPath "hjson";
-# Path to the 'hjson' CLI utility local dependency, resolved when installed.
-$HJSON_EXE = $null;
+# 'hjson' CLI utility local dependency pinned version.
+$HJSON_VERSION = "4.6.0";
 
-# The hash table equivalent of the locked management configuration YAML file, resolved at runtime.
-$MANAGE_ENV_CFG = $null;
-
-# Docker Bake project name, can be overriden via 'ENV:BAKE_PROJECT_NAME'.
-$DOCKER_BAKE_PROJECT_NAME = (Split-Path -Path "$ROOT_DIR" -Leaf).ToLower().Replace(" ", "-").Replace("_", "-");
-# Docker Bake local images registry, can be overriden via 'ENV:BAKE_IMAGE_LOCAL_REGISTRY'.
+# Path to the host Docker executable, resolved at runtime.
+$DOCKER_EXE = "docker";
+# Docker project name, resolved at runtime.
+$DOCKER_PROJECT_NAME = (Split-Path -Path "$ROOT_DIR" -Leaf).ToLower().Replace(" ", "-").Replace("_", "-");
+# Path to the Docker Bake common configurations directory.
+$DOCKER_BAKE_COMMON_CONFIGS_DIR = Join-Path -Path "$PWSH_SCRIPTS_COMMON_CONFIGS_DIR" -ChildPath "docker-bake";
+# Path to the Docker Bake user configurations directory, resolved at runtime.
+$DOCKER_BAKE_USER_CONFIGS_DIR = Join-Path -Path "$PWSH_SCRIPTS_USER_CONFIGS_DIR" -ChildPath "docker-bake";
+# Docker Bake configuration scopes, resolved at runtime.
+$DOCKER_BAKE_CONFIG_SCOPES = @();
+# Docker Bake local image registry for images not meant to leave the local environment, resolved at runtime.
 $DOCKER_BAKE_IMAGE_LOCAL_REGISTRY = "localhost/localuser";
+# Docker Bake image registry where to push relevant images, resolved at runtime.
+$DOCKER_BAKE_IMAGE_REGISTRY = $DOCKER_BAKE_IMAGE_LOCAL_REGISTRY;
+# Path to the Docker Compose common configurations directory.
+$DOCKER_COMPOSE_COMMON_CONFIGS_DIR = Join-Path -Path "$PWSH_SCRIPTS_COMMON_CONFIGS_DIR" -ChildPath "docker-compose";
+# Path to the Docker Compose user configurations directory, resolved at runtime.
+$DOCKER_COMPOSE_USER_CONFIGS_DIR = Join-Path -Path "$PWSH_SCRIPTS_USER_CONFIGS_DIR" -ChildPath "docker-compose";
+# Docker Compose configuration scopes, resolved at runtime.
+$DOCKER_COMPOSE_CONFIG_SCOPES = @();
 
-# Docker Compose Project name, can be overriden via 'ENV:COMPOSE_PROJECT_NAME'.
-$DOCKER_COMPOSE_PROJECT_NAME = $DOCKER_BAKE_PROJECT_NAME;
+# Path to the host Visual Studio Code CLI executable, resolved at runtime.
+$VSCODE_EXE = "code"
+# Path to the Visual Studio Code settings common configurations directory.
+$VSCODE_SETTINGS_COMMON_CONFIGS_DIR = Join-Path -Path "$PWSH_SCRIPTS_COMMON_CONFIGS_DIR" -ChildPath "vscode-settings";
+# Path to the Visual Studio Code settings user configurations directory, resolved at runtime.
+$VSCODE_SETTINGS_USER_CONFIGS_DIR = Join-Path -Path "$PWSH_SCRIPTS_USER_CONFIGS_DIR" -ChildPath "vscode-settings";
+# Visual Studio Code settings configuration scopes, resolved at runtime.
+$VSCODE_SETTINGS_CONFIG_SCOPES = @();
+# Visual Studio Code settings deployment file, resolved at runtime.
+$VSCODE_SETTINGS_DEPLOYMENT_FILE = Join-Path -Path "$ROOT_DIR" -ChildPath ".vscode" "settings.json";
+# Path to the host Visual Studio Code Dev Container CLI executable, resolved at runtime.
+$VSCODE_DEV_CONTAINER_EXE = "devcontainer";
+# Path to the Visual Studio Code Dev Container settings common configurations directory.
+$VSCODE_DEV_CONTAINER_SETTINGS_COMMON_CONFIGS_DIR = Join-Path -Path "$PWSH_SCRIPTS_COMMON_CONFIGS_DIR" -ChildPath "vscode-dev-container-settings";
+# Path to the Visual Studio Code Dev Container settings user configurations directory, resolved at runtime.
+$VSCODE_DEV_CONTAINER_SETTINGS_USER_CONFIGS_DIR = Join-Path -Path "$PWSH_SCRIPTS_USER_CONFIGS_DIR" -ChildPath "vscode-dev-container-settings";
+# Visual Studio Code Dev Container settings configuration scopes, resolved at runtime.
+$VSCODE_DEV_CONTAINER_SETTINGS_CONFIG_SCOPES = @();
+# Visual Studio Code Dev Container settings deployment file, resolved at runtime.
+$VSCODE_DEV_CONTAINER_SETTINGS_DEPLOYMENT_FILE = Join-Path -Path "$ROOT_DIR" -ChildPath ".devcontainer" "devcontainer.json";
+
+# Git username to use in Dev Container, resolved at runtime.
+$DEV_CONTAINER_GIT_USERNAME = $null;
+# Git email to use in Dev Container, resolved at runtime.
+$DEV_CONTAINER_GIT_EMAIL = $null;
+# Path in the host to Git SSH signing key to use in Dev Container, resolved at runtime.
+$DEV_CONTAINER_GIT_SSH_SIGN_KEY_FILE = $null;
+# GitHub username to use in Dev Container, resolved at runtime.
+$DEV_CONTAINER_GITHUB_USERNAME = $null;
+# Path in the host to GitHub SSH authentication key to use in Dev Container, resolved at runtime.
+$DEV_CONTAINER_GITHUB_SSH_AUTH_KEY_FILE = $null;
+# VNC server plain text  password to use in Dev Container, resolved at runtime.
+$DEV_CONTAINER_VNC_SERVER_PASSWORD = $null;
+# VNC server geometry to use in Dev Container, resolved at runtime.
+$DEV_CONTAINER_VNC_SERVER_GEOMETRY = $null;
 
 # [Internal Functions] #################################################################################################
 function Test-LocalDependency
@@ -168,9 +211,9 @@ function Test-LocalDependency
     {
         try
         {
-            # Get the tag of the PowerShell Core scripts if possible, and ensure it matches expected one.
-            $gitTag = & "$GIT_EXE" -C "$PWSH_SCRIPTS_DIR" describe --exact-match --tags HEAD 2>$null;
-            if ($gitTag -ne "$PWSH_SCRIPTS_VERSION")
+            # Attempt to read the contents of the lock file, and check if there is a version match.
+            $lockVersion = Get-Content -Path "$PWSH_SCRIPTS_LOCK_FILE" -Raw -Encoding "utf8";
+            if ($lockVersion -ne "$PWSH_SCRIPTS_VERSION")
             {
                 return $false;
             }
@@ -244,14 +287,23 @@ function Install-LocalDependency
     # Install PowerShell Core scripts dependency.
     if ($Dependency -in @("all", "pwsh-scripts"))
     {
-        # Remove current PowerShell Core scripts, if any.
+        # Remove current PowerShell Core scripts, if any, and create it anew.
         Remove-Item -Path "$PWSH_SCRIPTS_DIR" -Force -Recurse -ErrorAction 'SilentlyContinue';
+        New-Item -Path "$PWSH_SCRIPTS_DIR" -ItemType "Directory" -Force | Out-Null;
 
-        # Configure the repository for download and installation of the PowerShell Core scripts.
-        Write-Output "Installing PowerShell Core scripts '$PWSH_SCRIPTS_VERSION' in local environment...";
-        & "$GIT_EXE" clone --quiet --branch "$PWSH_SCRIPTS_VERSION" --depth 1 `
-            --shallow-submodules --recurse-submodules `
-            "https://github.com/dmg0345/powershell_scripts" "$PWSH_SCRIPTS_DIR";
+        # Select correct namespace in Git archive URL scheme by inferring tag versioning format.
+        if ($PWSH_SCRIPTS_VERSION -match "^[0-9]*\.[0-9]*\.[0-9]*$") { $dlPath = "tags/$PWSH_SCRIPTS_VERSION"; }
+        else { $dlPath = "heads/$PWSH_SCRIPTS_VERSION"; }
+
+        # Download file.
+        $outFile = Join-Path -Path "$tmpDlsDir" -ChildPath "pwsh-scripts.tar.gz";
+        Invoke-WebRequest -OutFile "$outFile" `
+            -Uri "https://github.com/dmg0345/powershell_scripts/archive/refs/${dlPath}.tar.gz";
+        # Extract to destination folder.
+        tar -xzf "$outFile" --strip-components 1 -C "$PWSH_SCRIPTS_DIR";
+
+        # Ensure the lock file is created after success.
+        Set-Content -Path "$PWSH_SCRIPTS_LOCK_FILE" -Value "$PWSH_SCRIPTS_VERSION" -NoNewline -Encoding "utf8";
     }
 
     # Install 'yq' CLI preprocessor dependency.
@@ -261,7 +313,7 @@ function Install-LocalDependency
         Remove-Item -Path "$YQ_DIR" -Force -Recurse -ErrorAction 'SilentlyContinue';
         New-Item -Path "$YQ_DIR" -ItemType "Directory" -Force | Out-Null;
 
-        # Configure the repository for download and installation of the PowerShell Core scripts.
+        # Perform download and installation depending on platform.
         Write-Output "Installing yq CLI tool '$YQ_VERSION' in local environment...";
         switch ($PLATFORM)
         {
@@ -325,7 +377,7 @@ function Install-LocalDependency
         Remove-Item -Path "$HJSON_DIR" -Force -Recurse -ErrorAction 'SilentlyContinue';
         New-Item -Path "$HJSON_DIR" -ItemType "Directory" -Force | Out-Null;
 
-        # Configure the repository for download and installation of the PowerShell Core scripts.
+        # Perform download and installation depending on platform.
         Write-Output "Installing hjson CLI tool '$HJSON_VERSION' in local environment...";
         switch ($PLATFORM)
         {
@@ -392,54 +444,301 @@ function Install-LocalDependency
     Write-Output "Installed local dependency '$Dependency' in local environment.";
 }
 
-function Resolve-EnvironmentVariable
-{
-    <#
-    .DESCRIPTION
-        Resolves environment variables.
-
-    .OUTPUTS
-        A hashtable with the items resolved from the YAML management environment file.
-    #>
-}
-
 function Resolve-ManagementEnvironment
 {
     <#
     .DESCRIPTION
-        Resolves the management environment.
+        Resolves a profile definition in a management environment.
 
-    .OUTPUTS
-        A hashtable with the items resolved from the YAML management environment file.
+    .PARAMETER Profile
+        The profile in the management environment configuration file to resolve.
     #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [String]
+        $ProfileIdentifier
+    )
 
-    # Parse the management YAML file to a hash table.
+    # Parse and resolve the management YAML file to a hash table.
     $manageEnv = Get-Content -Path "$PWSH_MANAGE_ENV_LOCK_FILE" -Encoding "utf8" -Raw |
-        & "./.manage-env/local-deps/yq" --output-format json |
+        & "$YQ_EXE" --output-format json |
         ConvertFrom-Json;
 
-    # Resolve from environment.
+    # Ensure the profiles top level key exists, and also the profile identifier within it.
+    if ((-not $manageEnv.ContainsKey("profiles")) -or
+        (-not $manageEnv["profiles"].ContainsKey($ProfileIdentifier)))
+    {
+        throw "Could not find profile '$ProfileIdentifier' in management environment configuration YAML file."
+    }
+    $p = $manageEnv["profiles"][$ProfileIdentifier];
 
-    # Resolve from
+    # Resolve 'docker' section.
+    $pDocker = $p["docker"] ?? @{};
+    $DOCKER_EXE ??= $pDocker["cli"];
+    $DOCKER_PROJECT_NAME ??= $pDocker["project-name"];
+    ## Resolve 'docker:bake' section.
+    $pDockerBake = $pDocker["bake"] ?? @{};
+    $DOCKER_BAKE_USER_CONFIGS_DIR ??= $pDockerBake["user-configs-dir"];
+    $DOCKER_BAKE_CONFIG_SCOPES ??= $pDockerBake["config-scopes"];
+    $DOCKER_BAKE_IMAGE_LOCAL_REGISTRY = $pDockerBake["image-local-registry"];
+    $DOCKER_BAKE_IMAGE_REGISTRY = $pDockerBake["image-registry"] ?? $DOCKER_BAKE_IMAGE_LOCAL_REGISTRY;
+    ## Resolve 'docker:compose' section.
+    $pDockerCompose = $pDocker["compose"] ?? @{};
+    $DOCKER_COMPOSE_USER_CONFIGS_DIR ??= $pDockerCompose["user-configs-dir"];
+    $DOCKER_COMPOSE_CONFIG_SCOPES ??= $pDockerCompose["config-scopes"];
 
-    return $manageEnv;
+    # Resolve 'vscode' section.
+    $pVscode = $p["vscode"] ?? @{};
+    $VSCODE_EXE ??= $pVscode["cli"];
+    ## Resolve 'vscode:settings' section.
+    $pVscodeSettings = $pVscode["settings"] ?? @{};
+    $VSCODE_SETTINGS_USER_CONFIGS_DIR ??= $pVscodeSettings["user-configs-dir"];
+    $VSCODE_SETTINGS_CONFIG_SCOPES ??= $pVscodeSettings["config-scopes"];
+    $VSCODE_SETTINGS_DEPLOYMENT_FILE ??= $pVscodeSettings["deployment-file"];
+    ## Resolve 'vscode:dev-container-settings' section.
+    $pVsCodeDevContainer = $pVscode["dev-container-settings"] ?? @{};
+    $VSCODE_DEV_CONTAINER_EXE ??= $pVsCodeDevContainer["cli"];
+    $VSCODE_DEV_CONTAINER_SETTINGS_USER_CONFIGS_DIR ??= $pVsCodeDevContainer["user-configs-dir"];
+    $VSCODE_DEV_CONTAINER_SETTINGS_CONFIG_SCOPES ??= $pVsCodeDevContainer["config-scopes"];
+    $VSCODE_DEV_CONTAINER_SETTINGS_DEPLOYMENT_FILE ??= $pVsCodeDevContainer["deployment-file"];
+
+    # Resolve 'dev-container' section.
+    $pDevContainer = $p["dev-container"] ?? @{};
+    ## Resolve 'dev-container:git' section.
+    $pDevContainerGit = $pDevContainer["git"] ?? @{};
+    $DEV_CONTAINER_GIT_USERNAME ??= $pDevContainerGit["username"];
+    $DEV_CONTAINER_GIT_EMAIL ??= $pDevContainerGit["email"];
+    $DEV_CONTAINER_GIT_SSH_SIGN_KEY_FILE ??= $pDevContainerGit["ssh-sign-key-file"];
+    ## Resolve 'dev-container:github' section.
+    $pDevContainerGitHub = $pDevContainer["github"] ?? @{};
+    $DEV_CONTAINER_GITHUB_USERNAME ??= $pDevContainerGitHub["username"];
+    $DEV_CONTAINER_GITHUB_SSH_AUTH_KEY_FILE ??= $pDevContainerGitHub["ssh-auth-key-file"];
+    ## Resolve 'dev-container:vnc-server' section.
+    $pDevContainerVncServer = $pDevContainer["vnc-server"] ?? @{};
+    $DEV_CONTAINER_VNC_SERVER_PASSWORD ??= $pDevContainerVncServer["password"];
+    $DEV_CONTAINER_VNC_SERVER_GEOMETRY ??= $pDevContainerVncServer["geometry"];
 }
 
+function Invoke-Docker
+{
+    <#
+    .DESCRIPTION
+        Invokes 'docker' with specified arguments.
+    #>
+    param (
+        [Parameter(ValueFromRemainingArguments = $true)]
+        $Args = @()
+    )
+    # Execute Docker forwarding arguments.
+    & "$DOCKER_EXE" @Args;
+}
 
+function Invoke-DockerBake
+{
+    <#
+    .DESCRIPTION
+        Invokes 'docker-bake' with specified arguments.
 
+    .PARAMETER NoFiles
+        If specified, the Docker Bake configuration files are not resolved nor added to the command.
+        Docker Bake configuration Files are added by default.
+    #>
+    param (
+        [Parameter(Mandatory = $false)]
+        [switch]
+        $NoBakeFiles = $false,
+        [Parameter(ValueFromRemainingArguments = $true)]
+        $Args = @()
+    )
 
+    # Check if configuration files have to be added.
+    $filesParam = @();
+    if (-not $NoFiles)
+    {
+        # Collect all the common configuration files.
+        $commonBakeHclFiles = Get-OrderedFileSet -Path "$DOCKER_BAKE_COMMON_CONFIGS_DIR" `
+            -FileSuffix "docker-bake" `
+            -FileExtension "hcl" `
+            -FileScopes $DOCKER_BAKE_CONFIG_SCOPES;
+        # Collect all the user configuration files, don't require them to be ordered.
+        $userBakeHclFiles = Get-OrderedFileSet -Path "$DOCKER_BAKE_USER_CONFIGS_DIR" `
+            -FileSuffix "docker-bake" `
+            -FileExtension "hcl" `
+            -FileScopes $DOCKER_BAKE_CONFIG_SCOPES `
+            -DisableNumbering;
+        # Collect all configuration files, common first and user second.
+        $allBakeHclFiles = $commonBakeHclFiles + $userBakeHclFiles;
+        # Build parameters for Docker Bake.
+        $filesParam = ($allBakeHclFiles | ForEach-Object { "--file"; "$_"; });
+    }
 
+    # Execute Docker Bake forwarding arguments.
+    Invoke-Docker "bake" --progress=plain @filesParam @Args;
+}
+
+function Invoke-DockerCompose
+{
+    <#
+    .DESCRIPTION
+        Invokes 'docker-compose' with specified arguments.
+
+    .PARAMETER NoFiles
+        If specified, the Docker Compose configuration files are not resolved nor added to the command.
+        Docker Compose configuration Files are added by default.
+    #>
+    param (
+        [Parameter(Mandatory = $false)]
+        [switch]
+        $NoComposeFiles = $false,
+        [Parameter(ValueFromRemainingArguments = $true)]
+        $Args = @()
+    )
+
+    # Check if configuration files have to be added.
+    $filesParam = @();
+    if (-not $NoComposeFiles)
+    {
+        # Collect all the common Compose extension files.
+        $commonComposeExtYmlFiles = Get-OrderedFileSet -Path "$DOCKER_COMPOSE_COMMON_CONFIGS_DIR" `
+            -FileSuffix "docker-compose-ext" `
+            -FileExtension "yml" `
+            -FileScopes $DOCKER_COMPOSE_CONFIG_SCOPES;
+        # Collect all the user Compose extension files, don't require them to be ordered.
+        $userComposeExtYmlFiles = Get-OrderedFileSet -Path "$DOCKER_BAKE_USER_CONFIGS_DIR" `
+            -FileSuffix "docker-compose-ext" `
+            -FileExtension "yml" `
+            -FileScopes $DOCKER_COMPOSE_CONFIG_SCOPES `
+            -DisableNumbering;
+        # Collect all the Compose extension files, common first and user second.
+        $allComposeExtYmlFiles = $commonComposeExtYmlFiles + $userComposeExtYmlFiles;
+        # Get all the Compose extension file contents and join them in a single Compose extension file.
+        $extContents = $allComposeExtYmlFiles | ForEach-Object { Get-Content -Path "$_" -Encoding "utf8" -Raw; }
+        $extContents = $extContents -join [Environment]::NewLine;
+        # Perform a YAML deep merge (arrays replaced, map keys replaced recursively) of the Compose extension file.
+        $extContents = $extContents | & "$YQ_EXE" eval-all --output-format yaml '. as $item ireduce ({}; . * $item)';
+        # Strip all comments of the Compose extension file from the output to reduce the total size.
+        $extContents = $extContents | & "$YQ_EXE" eval --output-format yaml '... comments=""';
+        # Save the single Compose extension file contents to file, this file will be prepended to all configurations.
+        $extConcatenatedFile = Join-Path -Path "$PWSH_MANAGE_ENV_TMP_DIR" -ChildPath "$(New-Guid)";
+        Set-Content -Path "$extConcatenatedFile" -Value "$extContents" -Encoding "utf8" -Force;
+
+        # Collect all the common Compose configuration files.
+        $commonComposeYmlFiles = Get-OrderedFileSet -Path "$DOCKER_COMPOSE_COMMON_CONFIGS_DIR" `
+            -FileSuffix "docker-compose" `
+            -FileExtension "yml" `
+            -FileScopes $DOCKER_COMPOSE_CONFIG_SCOPES;
+        # Collect all the user Compose configuration files, don't require them to be ordered.
+        $userComposeYmlFiles = Get-OrderedFileSet -Path "$DOCKER_BAKE_USER_CONFIGS_DIR" `
+            -FileSuffix "docker-compose" `
+            -FileExtension "yml" `
+            -FileScopes $DOCKER_COMPOSE_CONFIG_SCOPES `
+            -DisableNumbering;
+        # Collect all the Compose configuration files, common first and user second.
+        $allComposeYmlFiles = $commonComposeYmlFiles + $userComposeYmlFiles;
+        # Create temporary files for all the compose files, with the extension contents prepended.
+        $allComposeYmlProcessed = $allComposeYmlFiles | ForEach-Object {
+            # Generate file where to store the contents in the temporary directory.
+            $tmpComposeYmlFile = Join-Path -Path "$PWSH_MANAGE_ENV_TMP_DIR" -ChildPath "$(New-Guid)";
+            # Generate contents with the concatenated extension contents prepended.
+            $tmpComposeYmlContents = Get-Content -Path "$extConcatenatedFile" -Encoding "utf8" -Raw + `
+                [Environment]::NewLine + `
+                Get-Content -Path "$_" -Encoding "utf8" -Raw;
+            Set-Content -Path "$tmpComposeYmlFile" -Value "$tmpComposeYmlContents" -Encoding "utf8" -Force;
+            # Return the path to the file created to pass it to Docker Compose.
+            $tmpComposeYmlFile;
+        };
+
+        # Build parameters for Docker Compose.
+        $filesParam = ($allComposeYmlProcessed | ForEach-Object { "--file"; "$_"; });
+    }
+
+    # Execute Docker Bake forwarding arguments.
+    Invoke-Docker "compose" --progress=plain --project-name "$DOCKER_PROJECT_NAME" @filesParam @Args;
+}
+
+function Sync-VisualStudioCodeSettings
+{
+    <#
+    .DESCRIPTION
+        Synchronizes Visual Studio Code Settings and Visual Studio Code Dev Container Settings.
+    #>
+    param ()
+
+    # Collect all the common Visual Studio Code Settings files.
+    $commonSettingsJsoncFiles = Get-OrderedFileSet -Path "$VSCODE_SETTINGS_COMMON_CONFIGS_DIR" `
+        -FileSuffix "vscode-settings" `
+        -FileExtension "jsonc" `
+        -FileScopes $VSCODE_SETTINGS_CONFIG_SCOPES;
+    # Collect all the user Visual Studio Code Settings files, don't require them to be ordered.
+    $userSettingsJsoncFiles = Get-OrderedFileSet -Path "$VSCODE_SETTINGS_USER_CONFIGS_DIR" `
+        -FileSuffix "vscode-settings" `
+        -FileExtension "jsonc" `
+        -FileScopes $VSCODE_SETTINGS_CONFIG_SCOPES `
+        -DisableNumbering;
+    # Collect all the Visual Studio Code Settings files, common first and user second.
+    $allSettingsJsoncFiles = $commonSettingsJsoncFiles + $userSettingsJsoncFiles;
+    # Convert all the files from JSONC to JSON, stripping comments from them.
+    $allSettingsJsonFiles = $allSettingsJsoncFiles | ForEach-Object {
+        # Generate file where to store the contents in the temporary directory.
+        $tmpSettingsJsonFile = Join-Path -Path "$PWSH_MANAGE_ENV_TMP_DIR" -ChildPath "$(New-Guid)";
+        # Perform the JSONC to JSON conversion and store to file.
+        $tmpSettingsJsonContents = (Get-Content -Path "$_" -Encoding "utf8" -Raw) | & "$HJSON_EXE" -c;
+        Set-Content -Path "$tmpSettingsJsonFile" -Value "$tmpSettingsJsonContents" -Encoding "utf8" -Force;
+        # Return the path to the temporary file.
+        $tmpSettingsJsonFile;
+    };
+    # Perform a JSON deep merge (arrays replaced, map keys replaced recursively) of all the files to a single file.
+    $allSettingsJsonContents = & "$YQ_EXE" eval-all --output-format json '. as $item ireduce ({}; . * $item)' @allSettingsJsonFiles;
+    # Perform formatting to pretty printed JSON.
+    $allSettingsJsonContents = $allSettingsJsonContents | & "$HJSON_EXE" -j -preserveKeyOrder -quoteAlways -indentBy "    ";
+    # Store in destination deployment file.
+    Set-Content -Path "$VSCODE_SETTINGS_DEPLOYMENT_FILE" -Value $allSettingsJsonContents -Encoding "utf8" -Force;
+
+    # Collect all the common Visual Studio Code Dev Container Settings files.
+    $commonDevContainerSettingsJsoncFiles = Get-OrderedFileSet -Path "$VSCODE_DEV_CONTAINER_SETTINGS_COMMON_CONFIGS_DIR" `
+        -FileSuffix "vscode-dev-container-settings" `
+        -FileExtension "jsonc" `
+        -FileScopes $VSCODE_DEV_CONTAINER_SETTINGS_CONFIG_SCOPES;
+    # Collect all the user Visual Studio Code Dev Container Settings files, don't require them to be ordered.
+    $userDevContainerSettingsJsoncFiles = Get-OrderedFileSet -Path "$VSCODE_DEV_CONTAINER_SETTINGS_USER_CONFIGS_DIR" `
+        -FileSuffix "vscode-dev-container-settings" `
+        -FileExtension "jsonc" `
+        -FileScopes $VSCODE_DEV_CONTAINER_SETTINGS_CONFIG_SCOPES `
+        -DisableNumbering;
+    # Collect all the Visual Studio Code Dev Container Settings files, common first and user second.
+    $allDevContainerSettingsJsoncFiles = $commonDevContainerSettingsJsoncFiles + $userDevContainerSettingsJsoncFiles;
+    # Convert all the files from JSONC to JSON, stripping comments from them.
+    $allDevContainerSettingsJsonFiles = $allDevContainerSettingsJsoncFiles | ForEach-Object {
+        # Generate file where to store the contents in the temporary directory.
+        $tmpDevContainerSettingsJsonFile = Join-Path -Path "$PWSH_MANAGE_ENV_TMP_DIR" -ChildPath "$(New-Guid)";
+        # Perform the JSONC to JSON conversion and store to file.
+        $tmpDevContainerSettingsJsonContents = (Get-Content -Path "$_" -Encoding "utf8" -Raw) | & "$HJSON_EXE" -c;
+        Set-Content -Path "$tmpDevContainerSettingsJsonFile" -Value "$tmpDevContainerSettingsJsonContents" -Encoding "utf8" -Force;
+        # Return the path to the temporary file.
+        $tmpDevContainerSettingsJsonFile;
+    };
+    # Perform a JSON deep merge (arrays replaced, map keys replaced recursively) of all the files to a single file.
+    $allDevContainerSettingsJsonContents = & "$YQ_EXE" eval-all --output-format json '. as $item ireduce ({}; . * $item)' @allDevContainerSettingsJsonFiles;
+    # Perform formatting to pretty printed JSON.
+    $allDevContainerSettingsJsonContents = $allDevContainerSettingsJsonContents | & "$HJSON_EXE" -j -preserveKeyOrder -quoteAlways -indentBy "    ";
+    # Store in destination deployment file.
+    Set-Content -Path "$VSCODE_DEV_CONTAINER_SETTINGS_DEPLOYMENT_FILE" -Value $allDevContainerSettingsJsonContents -Encoding "utf8" -Force;
+}
 
 # [Functions] ##########################################################################################################
 
 # [Execution] ##########################################################################################################
 try
 {
-    # Ensure the local dependencies are installed.
-    Install-LocalDependencies;
+    # Ensure temporary directory is removed and created anew.
+    Remove-Item -Path "$PWSH_MANAGE_ENV_TMP_DIR" -Force -Recurse -ErrorAction 'SilentlyContinue';
+    New-Item "$PWSH_MANAGE_ENV_TMP_DIR" -ItemType Directory -Force | Out-Null;
+
+    # Install all the local dependencies first.
+    Install-LocalDependencies -Dependency 'all';
 
     # Ensure the minimal modules are imported.
-    Import-Module -Name "$PWSH_SCRIPTS_DIR/modules/commons.psm1" -Force `
+    Import-Module -Name "$PWSH_SCRIPTS_MODULES_DIR/commons.psm1" -Force `
         -Function Get-EnvironmentSnapshot `
         -Function Restore-EnvironmentSnapshot `
         -Function Get-OrderedFileSet `
@@ -449,34 +748,20 @@ try
     $envSnapshot = Get-EnvironmentSnapshot;
 
     # Resolve the locked management environment configuration YAML file.
-    $MANAGE_ENV_CFG = Resolve-ManagementEnvironment;
+    Resolve-ManagementEnvironment -ProfileIdentifier "$Profile";
 
-    # Create environment variables under which to run commands for script execution.
-    # $ENV:ROOT_DIR = $ROOT_DIR;
-    # $ENV:DEVCONTAINER_DIR = $DEVCONTAINER_DIR;
-    # $ENV:VSCODE_DIR = $VSCODE_DIR;
-    # $ENV:GIT_EXE = $GIT_EXE;
-    # $ENV:DOCKER_EXE = $DOCKER_EXE;
-    # $ENV:VSCODE_CLI_EXE = $VSCODE_CLI_EXE;
-    # $ENV:VSCODE_DEV_CONTAINER_CLI_EXE = $VSCODE_DEV_CONTAINER_CLI_EXE;
-    # $ENV:PWSH_EXE = $PWSH_EXE;
-    # $ENV:PWSH_MANAGE_ENV_DIR = $PWSH_MANAGE_ENV_DIR;
-    # $ENV:PWSH_MANAGE_TMP_DIR = $PWSH_MANAGE_TMP_DIR;
-    # $ENV:PWSH_MANAGE_DEP_DIR = $PWSH_MANAGE_DEP_DIR;
-    # $ENV:PWSH_MANAGE_MAIN_SCRIPT = $PWSH_MANAGE_MAIN_SCRIPT;
-    # $ENV:PWSH_SCRIPTS_VERSION = $PWSH_SCRIPTS_VERSION;
-    # $ENV:PWSH_SCRIPTS_DIR = $PWSH_SCRIPTS_DIR;
-    # $ENV:YQ_EXE = $YQ_EXE;
-    # $ENV:YQ_VERSION = $YQ_VERSION;
-    # $ENV:HJSON_EXE = $HJSON_EXE;
-    # $ENV:HJSON_VERSION = $HJSON_VERSION;
-    # $ENV:BAKE_PROJECT_NAME = $DOCKER_BAKE_PROJECT_NAME;
-    # $ENV:BAKE_IMAGE_LOCAL_REGISTRY = $DOCKER_BAKE_IMAGE_LOCAL_REGISTRY;
-    # $ENV:COMPOSE_PROJECT_NAME = $DOCKER_COMPOSE_PROJECT_NAME;
-
-    # Ensure temporary directory is removed and created anew.
-    Remove-Item -Path "$PWSH_MANAGE_ENV_TMP_DIR" -Force -Recurse -ErrorAction 'SilentlyContinue';
-    New-Item "$PWSH_MANAGE_ENV_TMP_DIR" -ItemType Directory -Force | Out-Null;
+    # Create relevant environment variables for processes.
+    $ENV:BAKE_PROJECT_NAME = $DOCKER_PROJECT_NAME;
+    $ENV:BAKE_IMAGE_LOCAL_REGISTRY = $DOCKER_BAKE_IMAGE_LOCAL_REGISTRY;
+    $ENV:BAKE_IMAGE_REGISTRY = $DOCKER_BAKE_IMAGE_REGISTRY;
+    $ENV:COMPOSE_PROJECT_NAME = $DOCKER_PROJECT_NAME;
+    $ENV:GIT_USERNAME = $DEV_CONTAINER_GIT_USERNAME;
+    $ENV:GIT_EMAIL = $DEV_CONTAINER_GIT_EMAIL;
+    $ENV:GIT_SSH_SIGN_KEY_FILE = $DEV_CONTAINER_GIT_SSH_SIGN_KEY_FILE;
+    $ENV:GITHUB_USERNAME = $DEV_CONTAINER_GITHUB_USERNAME;
+    $ENV:GITHUB_SSH_AUTH_KEY_FILE = $DEV_CONTAINER_GITHUB_SSH_AUTH_KEY_FILE;
+    $ENV:VNC_SERVER_PASSWORD = $DEV_CONTAINER_VNC_SERVER_PASSWORD;
+    $ENV:VNC_SERVER_GEOMETRY = $DEV_CONTAINER_VNC_SERVER_GEOMETRY;
 
     # Check if running logic per application commands.
     if ($PSBoundParameters.ContainsKey("Module"))
@@ -484,146 +769,88 @@ try
         # TODO: Do this with modules, rather than files.
     }
     # Check if running logic per main commands.
-    elseif ($Command -eq "git")
+    elseif ($Command -eq "version")
     {
-        Write-Log "Executing Git...";
-
-        # Execute Git forwarding arguments.
-        & "$($ENV:GIT_EXE)" @PSUnboundParameters;
-
-        Write-Log "Git executed with success." "Success";
-    }
-    elseif ($Command -eq "git-clean")
-    {
-        Write-Log "Cleaning main Git repository...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "git" clean -dfx;
-
-        Write-Log "Cleaning submodules recursively in main Git repository...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "git" submodule foreach --recursive "`"$($ENV:GIT_EXE)`"" clean -dfx;
+        Write-Output "$ManagementEnvironmentVersion - $ManagementEnvironmentPlatform";
     }
     elseif ($Command -eq "docker")
     {
-        Write-Log "Executing Docker...";
-
-        # Execute Docker forwarding arguments.
-        & "$($ENV:DOCKER_EXE)" @PSUnboundParameters;
-
-        Write-Log "Docker executed with success." "Success";
+        Invoke-Docker @PSUnboundParameters;
     }
     elseif ($Command -eq "docker-print")
     {
         Write-Log "Printing Docker version...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker" --version;
+        Invoke-Docker --version;
 
         Write-Log "Printing Docker Compose version...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker" compose version;
+        Invoke-DockerCompose -NoFiles version;
 
         Write-Log "Printing containers...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker" container list --all --size;
+        Invoke-Docker container list --all --size;
 
         Write-Log "Printing images...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker" image list --all --digests --no-trunc;
+        Invoke-Docker image list --all --digests --no-trunc;
 
         Write-Log "Printing volumes...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker" volume list;
+        Invoke-Docker volume list;
 
         Write-Log "Printing networks...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker" network list --no-trunc;
+        Invoke-Docker network list --no-trunc;
 
         Write-Log "Printing compose projects...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker" compose ls --all;
+        Invoke-DockerCompose -NoFiles ls --all;
     }
     elseif ($Command -eq "docker-clean")
     {
         Write-Log "Cleaning stopped containers...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker" container prune --force;
+        Invoke-Docker container prune --force;
 
         Write-Log "Cleaning dangling and unused images...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker" image prune --all --force;
+        Invoke-Docker image prune --all --force;
 
         Write-Log "Cleaning anonymous volumes...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker" volume prune --force;
+        Invoke-Docker volume prune --force;
 
         Write-Log "Cleaning unused networks...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker" network prune --force;
+        Invoke-Docker network prune --force;
 
         Write-Log "Cleaning builder cache...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker" builder prune --all --force;
+        Invoke-Docker builder prune --all --force;
     }
     elseif ($Command -eq "docker-bake")
     {
-        # Collect all the bake files.
-        $bakeHclFiles = New-SortedFileSet "$($ENV:DEVCONTAINER_DIR)" "docker-bake" "hcl" "$($ENV:BAKE_FILE_SELECTORS)";
-        # Build parameters.
-        $filesParam = ($bakeHclFiles | ForEach-Object { "--file"; "$_"; });
-        # Execute Docker Bake.
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker" bake --progress=plain @filesParam @PSUnboundParameters;
+        Invoke-DockerBake @PSUnboundParameters;
     }
     elseif ($Command -eq "docker-bake-print")
     {
         Write-Log "Printing Docker Bake files...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker-bake" --print "${DOCKER_BAKE_TARGET}";
+        Invoke-DockerBake --print "$BakeTarget";
 
         Write-Log "Printing Docker Bake targets...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker-bake" --list targets "${DOCKER_BAKE_TARGET}";
+        Invoke-DockerBake --list targets "$BakeTarget";
 
         Write-Log "Printing Docker Bake variables...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker-bake" --list variables "${DOCKER_BAKE_TARGET}";
+        Invoke-DockerBake --list variables "$BakeTarget";
     }
     elseif ($Command -eq "docker-bake-lint")
     {
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker-bake" --check "${DOCKER_BAKE_TARGET}";
+        Invoke-DockerBake --check "$BakeTarget";
     }
     elseif ($Command -eq "docker-bake-build")
     {
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker-bake" "${DOCKER_BAKE_TARGET}";
+        Invoke-DockerBake "$BakeTarget";
     }
     elseif ($Command -eq "docker-bake-rebuild")
     {
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker-bake" --no-cache "${DOCKER_BAKE_TARGET}";
+        Invoke-DockerBake --no-cache "$BakeTarget";
     }
     elseif ($Command -eq "docker-bake-push")
     {
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker-bake" --push "${DOCKER_BAKE_TARGET}";
+        Invoke-DockerBake --push "$BakeTarget";
     }
     elseif ($Command -eq "docker-compose")
     {
-        # Collect all the compose extension files, and concatenate their contents.
-        $extContents = (New-SortedFileSet "$($ENV:DEVCONTAINER_DIR)" "docker-compose-ext" "yml" "$($ENV:COMPOSE_EXT_FILE_SELECTORS)" |
-                ForEach-Object {
-                    # Print file found for informational purposes.
-                    Write-Host "Found: '$([System.IO.Path]::GetRelativePath("$($ENV:DEVCONTAINER_DIR)", "$_"))'...";
-                    # Read content and append it to array for concatenation.
-                    Get-Content -Path "$_" -Encoding "utf8" -Raw;
-                }) -join "`n";
-        # Perform a YAML deep merge (arrays replaced, map keys replaced recursively) of the concatenated extension contents.
-        $extContents = $extContents | & "$($ENV:YQ_EXE)" eval-all --output-format yaml '. as $item ireduce ({}; . * $item)';
-        # Strip all comments from the output to reduce size.
-        $extContents = $extContents | & "$($ENV:YQ_EXE)" eval --output-format yaml '... comments=""';
-        # Save the deep merged contents to file.
-        $extConcatenatedFile = Join-Path -Path "$($ENV:PWSH_MANAGE_TMP_DIR)" -ChildPath "$(New-Guid)";
-        Set-Content -Path "$extConcatenatedFile" -Value $extContents -Encoding "utf8" -Force;
-
-        # Collect all the compose files.
-        $composeYamlFiles = New-SortedFileSet "$($ENV:DEVCONTAINER_DIR)" "docker-compose" "yml" "$($ENV:COMPOSE_FILE_SELECTORS)";
-        # Create temporary files for all the compose files, with the extension contents prepended.
-        $tmpFiles = $composeYamlFiles | ForEach-Object {
-            # Print file found for informational purposes.
-            Write-Host "Found: '$([System.IO.Path]::GetRelativePath("$($ENV:DEVCONTAINER_DIR)", "$_"))'...";
-            # Set contents of file, with the deep merged extensions prepended, and the contents of compose YAML next.
-            $tmpFile = Join-Path -Path "$($ENV:PWSH_MANAGE_TMP_DIR)" -ChildPath "$(New-Guid)";
-            $tmpContents = Get-Content -Path "$extConcatenatedFile" -Encoding "utf8" -Raw;
-            $tmpContents += "`n";
-            $tmpContents += Get-Content -Path "$_" -Encoding "utf8" -Raw;
-            Set-Content -Path "$tmpFile" -Value "$tmpContents" -Encoding "utf8" -Force;
-            # Return the path to the file created to pass it to Docker Compose.
-            $tmpFile;
-        };
-
-        # Build parameters.
-        $filesParam = ($tmpFiles | ForEach-Object { "--file"; "$_"; });
-        # Execute Docker Compose.
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker" compose --progress=plain --project-name "$DOCKER_COMPOSE_PROJECT_NAME" @filesParam @PSUnboundParameters;
+        Invoke-DockerCompose @PSUnboundParameters;
     }
     elseif ($Command -eq "docker-compose-print")
     {
@@ -631,86 +858,46 @@ try
         $noResolveOpts = @("--no-path-resolution", "--no-env-resolution", "--no-interpolate");
 
         Write-Log "Printing Docker Compose files...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker-compose" config @noResolveOpts "${DOCKER_COMPOSE_SERVICE}";
+        Invoke-DockerCompose config @noResolveOpts "$ComposeService";
 
         Write-Log "Printing Docker Compose variables...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker-compose" config @noResolveOpts --variables "${DOCKER_COMPOSE_SERVICE}";
+        Invoke-DockerCompose config @noResolveOpts --variables "$ComposeService";
 
         Write-Log "Printing Docker Compose images...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker-compose" config @noResolveOpts --images "${DOCKER_COMPOSE_SERVICE}";
+        Invoke-DockerCompose config @noResolveOpts --images "$ComposeService";
 
         Write-Log "Printing Docker Compose services...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker-compose" config @noResolveOpts --services "${DOCKER_COMPOSE_SERVICE}";
+        Invoke-DockerCompose config @noResolveOpts --services "$ComposeService";
 
         Write-Log "Printing Docker Compose volumes...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker-compose" config @noResolveOpts --volumes "${DOCKER_COMPOSE_SERVICE}";
+        Invoke-DockerCompose config @noResolveOpts --volumes "$ComposeService";
 
         Write-Log "Printing Docker Compose networks...";
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker-compose" config @noResolveOpts --networks "${DOCKER_COMPOSE_SERVICE}";
+        Invoke-DockerCompose config @noResolveOpts --networks "$ComposeService";
     }
     elseif ($Command -eq "docker-compose-create")
     {
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker-compose" create --no-recreate --no-build --yes "${DOCKER_COMPOSE_SERVICE}";
+        Invoke-DockerCompose create --no-recreate --no-build --yes "$ComposeService";
     }
     elseif ($Command -eq "docker-compose-start")
     {
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker-compose" start "${DOCKER_COMPOSE_SERVICE}";
+        Invoke-DockerCompose start "$ComposeService";
     }
     elseif ($Command -eq "docker-compose-stop")
     {
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker-compose" stop "${DOCKER_COMPOSE_SERVICE}";
+        Invoke-DockerCompose stop "$ComposeService";
     }
     elseif ($Command -eq "docker-compose-destroy")
     {
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "docker-compose" down "${DOCKER_COMPOSE_SERVICE}";
+        Invoke-DockerCompose down "$ComposeService";
     }
-    elseif ($Command -eq "vscode")
+    elseif ($Command -eq "vscode-sync")
     {
-        Write-Log "Executing Visual Studio Code CLI...";
-
-        # Execute Visual Studio Code CLI.
-        & "$($ENV:VSCODE_CLI_EXE)" @PSUnboundParameters;
-
-        Write-Log "Visual Studio Code CLI executed with success." "Success";
+        Sync-VisualStudioCodeSettings;
     }
-    elseif ($Command -eq "vscode-settings-update")
+    elseif ($Command -eq "vscode-start")
     {
-        Write-Log "Executing Visual Studio Code Settings update...";
-
-        # Collect all the Visual Studio Code JSONC setting files, strip comments from them, convert them from JSONC to JSON.
-        $tmpFiles = (New-SortedFileSet "$($ENV:VSCODE_DIR)" "vscode-settings" "jsonc" "$($ENV:VSCODE_SETTINGS_FILE_SELECTORS)") |
-            ForEach-Object {
-                # Print file found for informational purposes.
-                Write-Host "Found: '$([System.IO.Path]::GetRelativePath("$($ENV:VSCODE_DIR)", "$_"))'...";
-                # Set contents of file, with the JSON contents.
-                $tmpFile = Join-Path -Path "$($ENV:PWSH_MANAGE_TMP_DIR)" -ChildPath "$(New-Guid)";
-                $tmpContents = (Get-Content -Path "$_" -Encoding "utf8" -Raw) | & "$($ENV:HJSON_EXE)" -c;
-                Set-Content -Path "$tmpFile" -Value "$tmpContents" -Encoding "utf8" -Force;
-                # Return the path to the JSON files created to deep merge it.
-                $tmpFile;
-            };
-        # Perform a JSON deep merge (arrays replaced, map keys replaced recursively) of all the extension files to a single file.
-        $settingsContents = & "$($ENV:YQ_EXE)" eval-all --output-format json --prettyPrint '. as $item ireduce ({}; . * $item)' @($tmpFiles);
-        # Print contents as formatted JSON to output.
-        $settingsContents | & "$($ENV:HJSON_EXE)" -j -preserveKeyOrder -quoteAlways -indentBy "    ";
-        # Set contents of settings file, ensuring the output is formatted.
-        $settingsContents | & "$($ENV:HJSON_EXE)" -j -preserveKeyOrder -quoteAlways -indentBy "    " |
-            Set-Content -Path (Join-Path -Path "$($ENV:VSCODE_DIR)" -ChildPath "settings.json") -Encoding "utf8" -Force;
-
-        Write-Log "Visual Studio Code Settings update executed with success." "Success";
-    }
-    elseif ($Command -eq "vscode-devcontainer")
-    {
-        Write-Log "Executing Visual Studio Code Dev Container CLI...";
-
-        # Execute Visual Studio Code Dev Container CLI.
-        & "$($ENV:VSCODE_DEV_CONTAINER_CLI_EXE)" @PSUnboundParameters;
-
-        Write-Log "Visual Studio Code Dev Container CLI executed with success." "Success";
-    }
-    elseif ($Command -eq "vscode-devcontainer-open")
-    {
-        & "$($ENV:PWSH_EXE)" -File "$($ENV:PWSH_MANAGE_MAIN_SCRIPT)" -Command "vscode-devcontainer" open ".";
+        & "$VSCODE_DEV_CONTAINER_EXE" open ".";
     }
     else
     {
