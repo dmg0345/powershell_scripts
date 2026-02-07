@@ -11,6 +11,6 @@
     "shellcheck.disableVersionCheck": true,
     "shellcheck.customArgs": [
         "--norc",
-        "--rcfile=${workspaceFolder}/.vscode/001-configs/000-config-shellcheck.rc"
+        "--rcfile=./.manage-env/local-deps/pwsh-scripts/configs/shellcheck/shellcheck.rc"
     ]
 }
