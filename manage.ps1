@@ -262,9 +262,6 @@ function Install-LocalPwsh
     {
         Remove-Item -Path "$outputFilePath" -Force -ErrorAction SilentlyContinue;
     }
-
-    # Report success in installation.
-    Write-Output "Installed local PowerShell Core in local environment.";
 }
 
 # [Functions] ##########################################################################################################

@@ -194,9 +194,6 @@ function Install-LocalPwsh()
     # On success, do not wait for the trap to remove the temporary download, remove it ASAP.
     rm -f "${outputFilePath}";
     trap - EXIT;
-
-    # Report success in installation.
-    echo "Installed local PowerShell Core in local environment.";
 }
 
 # [Functions] ##########################################################################################################

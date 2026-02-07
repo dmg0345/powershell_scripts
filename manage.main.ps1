@@ -468,11 +468,8 @@ function Install-LocalDependency
     # Ensure installation completed successfully.
     if (-not (Test-LocalDependency -Dependency "$Dependency"))
     {
-        throw "Installation of local dependency '$Dependency' in local environment failed."
+        throw "Installation of local dependency '$Dependency' failed."
     }
-
-    # Report success in installation.
-    Write-Output "Installed local dependency '$Dependency' in local environment.";
 }
 
 function Resolve-ManagementEnvironment
