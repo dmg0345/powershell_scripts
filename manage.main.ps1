@@ -217,10 +217,7 @@ function Test-LocalDependency
             # Attempt to read the contents of the lock file, and check if there is a version match.
             $lockContents = Get-Content -Path "$PWSH_SCRIPTS_LOCK_FILE" -Raw -Encoding "utf8";
             ($lockVersion, $lockPlatform) = $lockContents -split ":";
-            if (($lockVersion -ne "$PWSH_SCRIPTS_VERSION") -or ($lockPlatform -ne "$PLATFORM"))
-            {
-                return $false;
-            }
+            if (($lockVersion -ne "$PWSH_SCRIPTS_VERSION") -or ($lockPlatform -ne "$PLATFORM")) { return $false; }
         }
         catch { return $false; }
     }
@@ -231,12 +228,12 @@ function Test-LocalDependency
         try
         {
             # Attempt to read the contents of the lock file, and check if there is a version match.
-            $lockVersion = Get-Content -Path "$YQ_LOCK_FILE" -Raw -Encoding "utf8";
+            $lockContents = Get-Content -Path "$YQ_LOCK_FILE" -Raw -Encoding "utf8";
             ($lockVersion, $lockPlatform, $lockPathExe) = $lockContents -split ":";
-            if (($lockVersion -ne "$YQ_VERSION") -or ($lockPlatform -ne "$PLATFORM"))
-            {
-                return $false;
-            }
+            if (($lockVersion -ne "$YQ_VERSION") -or ($lockPlatform -ne "$PLATFORM")) { return $false; }
+            # Query the executable and check if there is a version match.
+            $currVersion = & "$lockPathExe" --version 2>$null;
+            if (-not ($currVersion -match ".*v$YQ_VERSION`$")) { return $false; }
             # Resolve executable path from locked file.
             $YQ_EXE = $lockPathExe;
         }
@@ -249,12 +246,12 @@ function Test-LocalDependency
         try
         {
             # Attempt to read the contents of the lock file, and check if there is a version match.
-            $lockVersion = Get-Content -Path "$HJSON_LOCK_FILE" -Raw -Encoding "utf8";
+            $lockContents = Get-Content -Path "$HJSON_LOCK_FILE" -Raw -Encoding "utf8";
             ($lockVersion, $lockPlatform, $lockPathExe) = $lockContents -split ":";
-            if (($lockVersion -ne "$HJSON_VERSION") -or ($lockPlatform -ne "$PLATFORM"))
-            {
-                return $false;
-            }
+            if (($lockVersion -ne "$HJSON_VERSION") -or ($lockPlatform -ne "$PLATFORM")) { return $false; }
+            # Query the executable and check if there is a version match.
+            $currVersion = & "$lockPathExe" -v 2>$null;
+            if (-not ($currVersion -match "^v$HJSON_VERSION`$")) { return $false; }
             # Resolve executable path from locked file.
             $HJSON_EXE = $lockPathExe;
         }
