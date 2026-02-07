@@ -316,7 +316,7 @@ function Install-LocalDependency
         tar -xzf "$outFile" --strip-components 1 -C "$PWSH_SCRIPTS_DIR";
 
         # Ensure the lock file is created after success.
-        Set-Content -Path "$PWSH_SCRIPTS_LOCK_FILE" -Value "$PWSH_SCRIPTS_VERSION:$PLATFORM" -NoNewline -Encoding "utf8";
+        Set-Content -Path "$PWSH_SCRIPTS_LOCK_FILE" -Value "${PWSH_SCRIPTS_VERSION}:${PLATFORM}" -NoNewline -Encoding "utf8";
     }
 
     # Install 'yq' CLI preprocessor dependency.
@@ -383,7 +383,7 @@ function Install-LocalDependency
         }
 
         # Ensure the lock file is created after success.
-        Set-Content -Path "$YQ_LOCK_FILE" -Value "$YQ_VERSION:$PLATFORM:$YQ_EXE" -NoNewline -Encoding "utf8";
+        Set-Content -Path "$YQ_LOCK_FILE" -Value "${YQ_VERSION}:${PLATFORM}:${YQ_EXE}" -NoNewline -Encoding "utf8";
     }
 
     # Install 'hjson' CLI preprocessor dependency.
@@ -450,7 +450,7 @@ function Install-LocalDependency
         }
 
         # Ensure the lock file is created after success.
-        Set-Content -Path "$HJSON_LOCK_FILE" -Value "$HJSON_VERSION:$PLATFORM:$HJSON_EXE" -NoNewline -Encoding "utf8";
+        Set-Content -Path "$HJSON_LOCK_FILE" -Value "${HJSON_VERSION}:${PLATFORM}:${HJSON_EXE}" -NoNewline -Encoding "utf8";
     }
 
     # Ensure installation completed successfully.
