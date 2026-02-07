@@ -23,7 +23,7 @@ readonly PWSH_MANAGE_ENV_LOCK_FILE="${PWSH_MANAGE_ENV_DIR}/manage-env.lock.yml";
 # Path to the PowerShell Core scripts local dependency directory.
 readonly PWSH_SCRIPTS_DIR="${PWSH_MANAGE_ENV_DEP_DIR}/pwsh-scripts";
 # Path to the PowerShell Core main management script where to delegate the logic past the bootstrap phase.
-readonly PWSH_SCRIPTS_MAIN_SCRIPT_FILE"${PWSH_SCRIPTS_DIR}/manage.main.ps1";
+readonly PWSH_SCRIPTS_MAIN_SCRIPT_FILE="${PWSH_SCRIPTS_DIR}/manage.main.ps1";
 # Minimum PowerShell Core version.
 readonly PWSH_VERSION_MIN="7.4.3";
 # Major version of the minimum PowerShell Core version.
@@ -104,7 +104,7 @@ function Install-ManagementEnvironment()
     mkdir -p "${PWSH_SCRIPTS_DIR}";
 
     # Download the local main management script file and install it in the folder.
-    curl -Lfo "${PWSH_SCRIPTS_MAIN_SCRIPT_FILE}" \
+    curl -Lsfo "${PWSH_SCRIPTS_MAIN_SCRIPT_FILE}" \
         "https://raw.githubusercontent.com/dmg0345/powershell_scripts/${1}/manage.main.ps1";
 
     # Lock version with the contents of the original YAML.
@@ -157,7 +157,7 @@ function Install-LocalPwsh()
         outputFilePath="${outputFilePath}.tar.gz";
         trap 'rm -f "$outputFilePath"' EXIT;
         # Download from the official releases site.
-        curl -Lfo "${outputFilePath}" "${downloadPath}";
+        curl -Lsfo "${outputFilePath}" "${downloadPath}";
         # Untar and install.
         tar -xzf "${outputFilePath}" -C "${PWSH_LOCAL_DIR}";
         # Ensure proper permissions are set on relevant files.
@@ -168,7 +168,7 @@ function Install-LocalPwsh()
         outputFilePath="${outputFilePath}.tar.gz";
         trap 'rm -f "$outputFilePath"' EXIT;
         # Download from the official releases site.
-        curl -Lfo "${outputFilePath}" "${downloadPath}";
+        curl -Lsfo "${outputFilePath}" "${downloadPath}";
         # Untar and install.
         tar -xzf "${outputFilePath}" -C "${PWSH_LOCAL_DIR}";
         # Ensure proper permissions are set on relevant files.
@@ -179,7 +179,7 @@ function Install-LocalPwsh()
         outputFilePath="${outputFilePath}.zip";
         trap 'rm -f "$outputFilePath"' EXIT;
         # Download from the official releases site.
-        curl -Lfo "${outputFilePath}" "${downloadPath}";
+        curl -Lsfo "${outputFilePath}" "${downloadPath}";
         # Unzip and install.
         unzip -q "${outputFilePath}" -d "${PWSH_LOCAL_DIR}";
     else
@@ -250,7 +250,7 @@ else
 fi
 
 # Delegate further execution to PowerShell Core and exit with its error code.
-"${pwshPath}" -File "${PWSH_MANAGE_ENV_MAIN_SCRIPT_FILE}" \
+"${pwshPath}" -File "${PWSH_SCRIPTS_MAIN_SCRIPT_FILE}" \
     -ManagementEnvironmentDir "${PWSH_MANAGE_ENV_DIR}" \
     -ManagementEnvironmentPwsh "${pwshPath}" \
     -ManagementEnvironmentVersion "${targetVersion}" \
