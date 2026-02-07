@@ -114,19 +114,19 @@ $PWSH_SCRIPTS_USER_CONFIGS_DIR = Join-Path -Path "$ROOT_DIR" -ChildPath ".manage
 # Path to the PowerShell Core scripts local dependency lock file.
 $PWSH_SCRIPTS_LOCK_FILE = Join-Path -Path "$PWSH_SCRIPTS_DIR" -ChildPath ".lock";
 
-# Path to the 'yq' CLI utility local dependency, resolved at runtime.
-$YQ_EXE = $null;
 # Path to the 'yq' CLI utility local dependency installation directory.
 $YQ_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DEP_DIR" -ChildPath "yq";
+# Path to the 'yq' CLI utility local dependency, resolved at runtime.
+$YQ_EXE = $null;
 # 'yq' CLI utility local dependency pinned version.
 $YQ_VERSION = "4.50.1";
 # Path to the 'yq' CLI utility local dependency lock file.
 $YQ_LOCK_FILE = Join-Path -Path "$YQ_DIR" -ChildPath ".lock";
 
-# Path to the 'hjson' CLI utility local dependency, resolved at runtime.
-$HJSON_EXE = $null;
 # Path to the 'hjson' CLI utility local dependency installation directory.
 $HJSON_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DEP_DIR" -ChildPath "hjson";
+# Path to the 'hjson' CLI utility local dependency, resolved at runtime.
+$HJSON_EXE = $null;
 # 'hjson' CLI utility local dependency pinned version.
 $HJSON_VERSION = "4.6.0";
 # Path to the 'hjson' CLI utility local dependency lock file.
@@ -215,8 +215,9 @@ function Test-LocalDependency
         try
         {
             # Attempt to read the contents of the lock file, and check if there is a version match.
-            $lockVersion = Get-Content -Path "$PWSH_SCRIPTS_LOCK_FILE" -Raw -Encoding "utf8";
-            if ($lockVersion -ne "$PWSH_SCRIPTS_VERSION")
+            $lockContents = Get-Content -Path "$PWSH_SCRIPTS_LOCK_FILE" -Raw -Encoding "utf8";
+            @($lockVersion, $lockPlatform) = ($lockContents -split ":");
+            if (($lockVersion -ne "$PWSH_SCRIPTS_VERSION") -or ($lockPlatform -ne "$PLATFORM"))
             {
                 return $false;
             }
@@ -231,10 +232,13 @@ function Test-LocalDependency
         {
             # Attempt to read the contents of the lock file, and check if there is a version match.
             $lockVersion = Get-Content -Path "$YQ_LOCK_FILE" -Raw -Encoding "utf8";
-            if (-not ($lockVersion -ne "$YQ_VERSION"))
+            @($lockVersion, $lockPlatform, $lockPathExe) = ($lockContents -split ":");
+            if (($lockVersion -ne "$YQ_VERSION") -or ($lockPlatform -ne "$PLATFORM"))
             {
                 return $false;
             }
+            # Resolve executable path from locked file.
+            $YQ_EXE = $lockPathExe;
         }
         catch { return $false; }
     }
@@ -246,10 +250,13 @@ function Test-LocalDependency
         {
             # Attempt to read the contents of the lock file, and check if there is a version match.
             $lockVersion = Get-Content -Path "$HJSON_LOCK_FILE" -Raw -Encoding "utf8";
-            if (-not ($lockVersion -ne "$HJSON_VERSION"))
+            @($lockVersion, $lockPlatform, $lockPathExe) = ($lockContents -split ":");
+            if (($lockVersion -ne "$HJSON_VERSION") -or ($lockPlatform -ne "$PLATFORM"))
             {
                 return $false;
             }
+            # Resolve executable path from locked file.
+            $HJSON_EXE = $lockPathExe;
         }
         catch { return $false; }
     }
@@ -309,7 +316,7 @@ function Install-LocalDependency
         tar -xzf "$outFile" --strip-components 1 -C "$PWSH_SCRIPTS_DIR";
 
         # Ensure the lock file is created after success.
-        Set-Content -Path "$PWSH_SCRIPTS_LOCK_FILE" -Value "$PWSH_SCRIPTS_VERSION" -NoNewline -Encoding "utf8";
+        Set-Content -Path "$PWSH_SCRIPTS_LOCK_FILE" -Value "$PWSH_SCRIPTS_VERSION:$PLATFORM" -NoNewline -Encoding "utf8";
     }
 
     # Install 'yq' CLI preprocessor dependency.
@@ -376,7 +383,7 @@ function Install-LocalDependency
         }
 
         # Ensure the lock file is created after success.
-        Set-Content -Path "$YQ_LOCK_FILE" -Value "$YQ_VERSION" -NoNewline -Encoding "utf8";
+        Set-Content -Path "$YQ_LOCK_FILE" -Value "$YQ_VERSION:$PLATFORM:$YQ_EXE" -NoNewline -Encoding "utf8";
     }
 
     # Install 'hjson' CLI preprocessor dependency.
@@ -443,7 +450,7 @@ function Install-LocalDependency
         }
 
         # Ensure the lock file is created after success.
-        Set-Content -Path "$HJSON_LOCK_FILE" -Value "$HJSON_VERSION" -NoNewline -Encoding "utf8";
+        Set-Content -Path "$HJSON_LOCK_FILE" -Value "$HJSON_VERSION:$PLATFORM:$HJSON_EXE" -NoNewline -Encoding "utf8";
     }
 
     # Ensure installation completed successfully.
@@ -750,11 +757,11 @@ try
     Install-LocalDependency -Dependency 'all';
 
     # Ensure the minimal modules are imported.
-    Import-Module -Name "$PWSH_SCRIPTS_MODULES_DIR/commons.psm1" -Force `
-        -Function Get-EnvironmentSnapshot `
-        -Function Restore-EnvironmentSnapshot `
-        -Function Get-OrderedFileSet `
-        -Function Write-Log;
+    Import-Module -Name "$PWSH_SCRIPTS_MODULES_DIR/commons.psm1" -Force -Function `
+        Get-EnvironmentSnapshot, `
+        Restore-EnvironmentSnapshot, `
+        Get-OrderedFileSet, `
+        Write-Log;
 
     # Get a snapshot of the environment to restore it later.
     $envSnapshot = Get-EnvironmentSnapshot;
