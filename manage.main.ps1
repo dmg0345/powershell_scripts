@@ -85,6 +85,8 @@ $ErrorActionPreference = "Stop";
 $ProgressPreference = 'SilentlyContinue';
 
 # [Declarations] #######################################################################################################
+# Path to the PowerShell Core executable, as resolved by the bootstrap script.
+$PWSH_EXE = $ManagementEnvironmentPwsh;
 # The platform running the management environment, as resolved by the bootstrap script.
 $PLATFORM = $ManagementEnvironmentPlatform;
 # Path to the root directory where the bootstrap scripts are located, must match the bootstrap scripts.
@@ -109,11 +111,8 @@ $PWSH_SCRIPTS_MODULES_DIR = Join-Path -Path "$PWSH_SCRIPTS_DIR" -ChildPath "modu
 $PWSH_SCRIPTS_COMMON_CONFIGS_DIR = Join-Path -Path "$PWSH_SCRIPTS_DIR" -ChildPath "configs";
 # Path to the PowerShell Core scripts user configurations directory.
 $PWSH_SCRIPTS_USER_CONFIGS_DIR = Join-Path -Path "$ROOT_DIR" -ChildPath ".manage-env-configs";
-# Path to the PowerShell Core scripts lock file.
+# Path to the PowerShell Core scripts local dependency lock file.
 $PWSH_SCRIPTS_LOCK_FILE = Join-Path -Path "$PWSH_SCRIPTS_DIR" -ChildPath ".lock";
-
-# Path to the PowerShell Core executable, as resolved by the bootstrap script.
-$PWSH_EXE = $ManagementEnvironmentPwsh;
 
 # Path to the 'yq' CLI utility local dependency, resolved at runtime.
 $YQ_EXE = $null;
@@ -121,6 +120,8 @@ $YQ_EXE = $null;
 $YQ_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DEP_DIR" -ChildPath "yq";
 # 'yq' CLI utility local dependency pinned version.
 $YQ_VERSION = "4.50.1";
+# Path to the 'yq' CLI utility local dependency lock file.
+$YQ_LOCK_FILE = Join-Path -Path "$YQ_DIR" -ChildPath ".lock";
 
 # Path to the 'hjson' CLI utility local dependency, resolved at runtime.
 $HJSON_EXE = $null;
@@ -128,6 +129,8 @@ $HJSON_EXE = $null;
 $HJSON_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DEP_DIR" -ChildPath "hjson";
 # 'hjson' CLI utility local dependency pinned version.
 $HJSON_VERSION = "4.6.0";
+# Path to the 'hjson' CLI utility local dependency lock file.
+$HJSON_LOCK_FILE = Join-Path -Path "$HJSON_DIR" -ChildPath ".lock";
 
 # Path to the host Docker executable, resolved at runtime.
 $DOCKER_EXE = "docker";
@@ -226,9 +229,9 @@ function Test-LocalDependency
     {
         try
         {
-            # Get the 'yq' CLI utility version if possible and do a check for expected version.
-            $yqVersion = & "$YQ_EXE" --version 2>$null;
-            if (-not ($yqVersion -match ".*v$YQ_VERSION`$"))
+            # Attempt to read the contents of the lock file, and check if there is a version match.
+            $lockVersion = Get-Content -Path "$YQ_LOCK_FILE" -Raw -Encoding "utf8";
+            if (-not ($lockVersion -ne "$YQ_VERSION"))
             {
                 return $false;
             }
@@ -241,9 +244,9 @@ function Test-LocalDependency
     {
         try
         {
-            # Get the 'hjson' CLI utility version if possible and do a check for expected version.
-            $hjsonVersion = & "$HJSON_EXE" -v 2>$null;
-            if (-not ($hjsonVersion -match "^v$HJSON_VERSION`$"))
+            # Attempt to read the contents of the lock file, and check if there is a version match.
+            $lockVersion = Get-Content -Path "$HJSON_LOCK_FILE" -Raw -Encoding "utf8";
+            if (-not ($lockVersion -ne "$HJSON_VERSION"))
             {
                 return $false;
             }
@@ -371,6 +374,9 @@ function Install-LocalDependency
             }
             default { throw "Unable to install 'yq' for platform '$PLATFORM'."; }
         }
+
+        # Ensure the lock file is created after success.
+        Set-Content -Path "$YQ_LOCK_FILE" -Value "$YQ_VERSION" -NoNewline -Encoding "utf8";
     }
 
     # Install 'hjson' CLI preprocessor dependency.
@@ -435,6 +441,9 @@ function Install-LocalDependency
             }
             default { throw "Unable to install 'hjson' for platform '$PLATFORM'."; }
         }
+
+        # Ensure the lock file is created after success.
+        Set-Content -Path "$HJSON_LOCK_FILE" -Value "$HJSON_VERSION" -NoNewline -Encoding "utf8";
     }
 
     # Ensure installation completed successfully.
