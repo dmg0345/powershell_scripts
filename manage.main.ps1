@@ -15,7 +15,7 @@ param (
     $Profile = "default",
 
     # Main command to execute, one of:
-    #   - 'init': Initializes the environment and prints the version to the standard output.
+    #   - 'init': Initializes the environment and prints some data to the standard output.
     #   - 'docker': Host command, forwards the script arguments to Docker along with other relevant arguments.
     #   - 'docker-print': Host command, prints details about networks, images, volumes, containers...
     #   - 'docker-clean': Host command, cleans stopped containers, unused images and networks, anonymous volumes and builder cache.
@@ -136,6 +136,9 @@ $HJSON_VERSION = "4.6.0";
 # Path to the 'hjson' CLI utility local dependency lock file.
 $HJSON_LOCK_FILE = Join-Path -Path "$HJSON_DIR" -ChildPath ".lock";
 
+# The resolved profile configuration from the management environment configuration YAML file, resolved at runtime.
+$PROFILE_CFG = $null;
+
 # Path to the host Docker executable, resolved at runtime.
 $DOCKER_EXE = "docker";
 # Docker project name, resolved at runtime.
@@ -243,7 +246,7 @@ function Test-LocalDependency
             $currVer = & "$lockExe" --version 2>$null;
             if (-not ($currVer -match ".*v${SCRIPT:YQ_VERSION}`$")) { return $false; }
             # Resolve executable path from locked file.
-            $SCRIPT:YQ_EXE = $lockPathExe;
+            $SCRIPT:YQ_EXE = $lockExe;
         }
         catch { return $false; }
     }
@@ -490,7 +493,7 @@ function Resolve-ManagementEnvironment
     # Parse and resolve the management YAML file to a hash table.
     $manageEnv = Get-Content -Path "${SCRIPT:PWSH_MANAGE_ENV_LOCK_FILE}" -Encoding "utf8" -Raw |
         & "${SCRIPT:YQ_EXE}" --output-format json |
-        ConvertFrom-Json;
+        ConvertFrom-Json -AsHashtable;
 
     # Ensure the profiles top level key exists, and also the profile identifier within it.
     if ((-not $manageEnv.ContainsKey("profiles")) -or
@@ -498,10 +501,10 @@ function Resolve-ManagementEnvironment
     {
         throw "Could not find profile '$ProfileIdentifier' in management environment configuration YAML file."
     }
-    $p = $manageEnv["profiles"][$ProfileIdentifier];
+    $SCRIPT:PROFILE_CFG = $manageEnv["profiles"][$ProfileIdentifier];
 
     # Resolve 'docker' section.
-    $pDocker = $p["docker"] ?? @{};
+    $pDocker = $SCRIPT:PROFILE_CFG["docker"] ?? @{};
     $SCRIPT:DOCKER_EXE ??= $pDocker["cli"];
     $SCRIPT:DOCKER_PROJECT_NAME ??= $pDocker["project-name"];
     ## Resolve 'docker:bake' section.
@@ -516,7 +519,7 @@ function Resolve-ManagementEnvironment
     $SCRIPT:DOCKER_COMPOSE_CONFIG_SCOPES ??= $pDockerCompose["config-scopes"];
 
     # Resolve 'vscode' section.
-    $pVscode = $p["vscode"] ?? @{};
+    $pVscode = $SCRIPT:PROFILE_CFG["vscode"] ?? @{};
     $SCRIPT:VSCODE_EXE ??= $pVscode["cli"];
     ## Resolve 'vscode:settings' section.
     $pVscodeSettings = $pVscode["settings"] ?? @{};
@@ -531,7 +534,7 @@ function Resolve-ManagementEnvironment
     $SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_DEPLOYMENT_FILE ??= $pVsCodeDevContainer["deployment-file"];
 
     # Resolve 'dev-container' section.
-    $pDevContainer = $p["dev-container"] ?? @{};
+    $pDevContainer = $SCRIPT:PROFILE_CFG["dev-container"] ?? @{};
     ## Resolve 'dev-container:git' section.
     $pDevContainerGit = $pDevContainer["git"] ?? @{};
     $SCRIPT:DEV_CONTAINER_GIT_USERNAME ??= $pDevContainerGit["username"];
@@ -596,6 +599,8 @@ function Invoke-DockerBake
             -DisableNumbering;
         # Collect all configuration files, common first and user second.
         $allBakeHclFiles = $commonBakeHclFiles + $userBakeHclFiles;
+        # Print files found for informational purposes.
+        $allBakeHclFiles | ForEach-Object { Write-Log "Found Docker Bake configuration file: '$_'..."; };
         # Build parameters for Docker Bake.
         $filesParam = ($allBakeHclFiles | ForEach-Object { "--file"; "$_"; });
     }
@@ -640,7 +645,10 @@ function Invoke-DockerCompose
         # Collect all the Compose extension files, common first and user second.
         $allComposeExtYmlFiles = $commonComposeExtYmlFiles + $userComposeExtYmlFiles;
         # Get all the Compose extension file contents and join them in a single Compose extension file.
-        $extCnts = $allComposeExtYmlFiles | ForEach-Object { Get-Content -Path "$_" -Encoding "utf8" -Raw; }
+        $extCnts = $allComposeExtYmlFiles | ForEach-Object {
+            Write-Log "Found Docker Compose Extension file: '$_'...";
+            Get-Content -Path "$_" -Encoding "utf8" -Raw;
+        }
         $extCnts = $extCnts -join [Environment]::NewLine;
         # Perform a YAML deep merge (arrays replaced, map keys replaced recursively) of the Compose extension file.
         $extCnts = $extCnts | & "${SCRIPT:YQ_EXE}" eval-all --output-format yaml '. as $item ireduce ({}; . * $item)';
@@ -665,6 +673,7 @@ function Invoke-DockerCompose
         $allComposeYmlFiles = $commonComposeYmlFiles + $userComposeYmlFiles;
         # Create temporary files for all the compose files, with the extension contents prepended.
         $allComposeYmlProcessed = $allComposeYmlFiles | ForEach-Object {
+            Write-Log "Found Docker Compose configuration file: '$_'...";
             # Generate file where to store the contents in the temporary directory.
             $tmpComposeYmlFile = Join-Path -Path "${SCRIPT:PWSH_MANAGE_ENV_TMP_DIR}" -ChildPath "$(New-Guid)";
             # Generate contents with the concatenated extension contents prepended.
@@ -707,6 +716,7 @@ function Sync-VisualStudioCodeSettings
     $allSettingsJsoncFiles = $commonSettingsJsoncFiles + $userSettingsJsoncFiles;
     # Convert all the files from JSONC to JSON, stripping comments from them.
     $jsonFiles = $allSettingsJsoncFiles | ForEach-Object {
+        Write-Log "Found Visual Studio Code Settings configuration file: '$_'...";
         # Generate file where to store the contents in the temporary directory.
         $tmpJsonFile = Join-Path -Path "${SCRIPT:PWSH_MANAGE_ENV_TMP_DIR}" -ChildPath "$(New-Guid)";
         # Perform the JSONC to JSON conversion and store to file.
@@ -737,6 +747,7 @@ function Sync-VisualStudioCodeSettings
     $allSettingsJsoncFiles = $commonSettingsJsoncFiles + $userSettingsJsoncFiles;
     # Convert all the files from JSONC to JSON, stripping comments from them.
     $jsonFiles = $allSettingsJsoncFiles | ForEach-Object {
+        Write-Log "Found Visual Studio Code Dev Container Settings configuration file: '$_'...";
         # Generate file where to store the contents in the temporary directory.
         $tmpJsonFile = Join-Path -Path "${SCRIPT:PWSH_MANAGE_ENV_TMP_DIR}" -ChildPath "$(New-Guid)";
         # Perform the JSONC to JSON conversion and store to file.
@@ -799,10 +810,13 @@ try
     # Check if running logic per main commands.
     elseif ($Command -eq "init")
     {
-        Write-Log "PowerShell Core Path: '$ManagementEnvironmentPwsh'.";
-        Write-Log "Environment Directory: '$ManagementEnvironmentDir'.";
         Write-Log "Version: '$ManagementEnvironmentVersion'.";
-        Write-Log "Platform: '$ManagementEnvironmentPlatform'";
+        Write-Log "    Platform: '$ManagementEnvironmentPlatform'";
+        Write-Log "    PowerShell Core: '$ManagementEnvironmentPwsh' / '$(& "$ManagementEnvironmentPwsh" --version)'.";
+        Write-Log "Project Directory: '$(Resolve-Path -Path "$ROOT_DIR")'.";
+        Write-Log "    Environment: '$ManagementEnvironmentDir'.";
+        Write-Log "    yq: '$YQ_EXE' / '$(& "$YQ_EXE" --version)'.";
+        Write-Log "    hjson: '$HJSON_EXE' / '$(& "$HJSON_EXE" -v)'.";
     }
     elseif ($Command -eq "docker")
     {
