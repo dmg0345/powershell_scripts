@@ -139,7 +139,7 @@ function Install-ManagementEnvironment
     New-Item -Path "${PWSH_MANAGE_ENV_DIR}" -ItemType Directory -Force | Out-Null;
 
     # Log start of installation.
-    Write-Output "Installing local management environment '${Version}'...";
+    Write-Output "Installing local management environment '${Version}' at '${PWSH_MANAGE_ENV_DIR}'...";
 
     # Ensure the destination folder where the main management script file will be deployed exists.
     New-Item -Path "${PWSH_SCRIPTS_DIR}" -ItemType "Directory" -Force | Out-Null;
@@ -204,7 +204,7 @@ function Install-LocalPwsh
     param()
 
     # Log start of installation.
-    Write-Output "Installing local PowerShell Core '$PWSH_VERSION_MIN' in local environment...";
+    Write-Output "Installing local PowerShell Core '$PWSH_VERSION_MIN' at '${PWSH_LOCAL_DIR}'...";
 
     # Ensure the local folder is removed and created anew.
     Remove-Item -Path "$PWSH_LOCAL_DIR" -Force -Recurse -ErrorAction SilentlyContinue;

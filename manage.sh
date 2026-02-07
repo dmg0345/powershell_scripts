@@ -98,7 +98,7 @@ function Install-ManagementEnvironment()
     mkdir -p "${PWSH_MANAGE_ENV_DIR}";
 
     # Log start of installation.
-    echo "Installing local management environment '${1}'...";
+    echo "Installing local management environment '${1}' at '${PWSH_MANAGE_ENV_DIR}'...";
 
     # Ensure the destination folder where the main management script file will be deployed exists.
     mkdir -p "${PWSH_SCRIPTS_DIR}";
@@ -143,7 +143,7 @@ function Test-Pwsh()
 function Install-LocalPwsh()
 {
     # Log start of installation.
-    echo "Installing local PowerShell Core '${PWSH_VERSION_MIN}' in local environment...";
+    echo "Installing local PowerShell Core '${PWSH_VERSION_MIN}' at '${PWSH_LOCAL_DIR}'...";
 
     # Ensure the local folder is removed and created anew.
     rm -rf "${PWSH_LOCAL_DIR}";

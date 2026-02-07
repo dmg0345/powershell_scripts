@@ -307,7 +307,7 @@ function Install-LocalDependency
         New-Item -Path "${SCRIPT:PWSH_SCRIPTS_DIR}" -ItemType "Directory" -Force | Out-Null;
 
         # Download from Git Archive API exposed in GitHub, so that a Git dependency is not needed.
-        Write-Output "Installing PowerShell Core scripts '${SCRIPT:PWSH_SCRIPTS_VERSION}' in local environment...";
+        Write-Output "Installing PowerShell Core scripts '${SCRIPT:PWSH_SCRIPTS_VERSION}' at '${SCRIPT:PWSH_SCRIPTS_DIR}'...";
 
         # Select correct namespace in Git archive URL scheme by inferring tag versioning format.
         $tagRegex = "^[0-9]*\.[0-9]*\.[0-9]*$";
@@ -335,7 +335,7 @@ function Install-LocalDependency
         New-Item -Path "${SCRIPT:YQ_DIR}" -ItemType "Directory" -Force | Out-Null;
 
         # Perform download and installation depending on platform.
-        Write-Output "Installing yq CLI tool '${SCRIPT:YQ_VERSION}' in local environment...";
+        Write-Output "Installing yq CLI tool '${SCRIPT:YQ_VERSION}' at '${SCRIPT:YQ_DIR}'...";
         switch ($SCRIPT:PLATFORM)
         {
             "linux-x64"
@@ -404,7 +404,7 @@ function Install-LocalDependency
         New-Item -Path "${SCRIPT:HJSON_DIR}" -ItemType "Directory" -Force | Out-Null;
 
         # Perform download and installation depending on platform.
-        Write-Output "Installing hjson CLI tool '${SCRIPT:HJSON_VERSION}' in local environment...";
+        Write-Output "Installing hjson CLI tool '${SCRIPT:HJSON_VERSION}' at '${SCRIPT:HJSON_DIR}'...";
         switch ($SCRIPT:PLATFORM)
         {
             "linux-x64"
