@@ -187,7 +187,6 @@ function Install-LocalPwsh()
         exit 1;
     fi
 
-
     # On success, do not wait for the trap to remove the temporary download, remove it ASAP.
     rm -f "${outputFilePath}";
     trap - EXIT;
