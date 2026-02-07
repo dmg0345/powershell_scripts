@@ -15,14 +15,17 @@ $ProgressPreference = 'SilentlyContinue';
 
 # [Declarations] #######################################################################################################
 # Path to the management environment configuration YAML file for the management environment.
-$PWSH_MANAGE_ENV_YAML_FILE = Join-Path -Path "${PSScriptRoot}" -ChildPath "manage-env.yml";
+$PWSH_MANAGE_ENV_YAML_FILE = Join-Path -Path "." -ChildPath "manage-env.yml";
 # Path to the management environment directory.
-$PWSH_MANAGE_ENV_DIR = Join-Path -Path "${PSScriptRoot}" -ChildPath ".manage-env";
+$PWSH_MANAGE_ENV_DIR = Join-Path -Path "." -ChildPath ".manage-env";
+# Path to a directory with the local dependencies.
+$PWSH_MANAGE_ENV_DEP_DIR = Join-Path -Path "${PWSH_MANAGE_ENV_DIR}" -ChildPath "local-deps";
 # Path to the lock file of an already configured management environment.
-$PWSH_MANAGE_ENV_LOCK_FILE = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "manage-env.lock.yml";
+$PWSH_MANAGE_ENV_LOCK_FILE = Join-Path -Path "${PWSH_MANAGE_ENV_DIR}" -ChildPath "manage-env.lock.yml";
+# Path to the PowerShell Core scripts local dependency directory.
+$PWSH_SCRIPTS_DIR = Join-Path -Path "${PWSH_MANAGE_ENV_DEP_DIR}" -ChildPath "pwsh-scripts";
 # Path to the PowerShell Core main management script where to delegate the logic past the bootstrap phase.
-$PWSH_MANAGE_ENV_MAIN_SCRIPT_FILE = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "manage.main.ps1";
-
+$PWSH_SCRIPTS_MAIN_SCRIPT_FILE = Join-Path -Path "${PWSH_SCRIPTS_DIR}" -ChildPath "manage.main.ps1";
 # Minimum PowerShell Core version.
 $PWSH_VERSION_MIN = "7.4.3";
 # Major version of the minimum PowerShell Core version.
@@ -138,8 +141,11 @@ function Install-ManagementEnvironment
     # Log start of installation.
     Write-Output "Installing local management environment '${Version}'...";
 
+    # Ensure the destination folder where the main management script file will be deployed exists.
+    New-Item -Path "${PWSH_SCRIPTS_DIR}" -ItemType "Directory" -Force | Out-Null;
+
     # Download the local main management script file and install it in the folder.
-    Invoke-WebRequest -OutFile "${PWSH_MANAGE_ENV_MAIN_SCRIPT_FILE}" `
+    Invoke-WebRequest -OutFile "${PWSH_SCRIPTS_MAIN_SCRIPT_FILE}" `
         -Uri "https://raw.githubusercontent.com/dmg0345/powershell_scripts/${Version}/manage.main.ps1";
 
     # Lock version with the contents of the original YAML.
@@ -325,7 +331,8 @@ else
 }
 
 # Delegate further execution to PowerShell Core and exit with its error code.
-& "$pwshPath" -File "$PWSH_MANAGE_ENV_MAIN_SCRIPT_FILE" `
+& "$pwshPath" -File "$PWSH_SCRIPTS_MAIN_SCRIPT_FILE" `
+    -ManagementEnvironmentDir "$PWSH_MANAGE_ENV_DIR" `
     -ManagementEnvironmentPwsh "$pwshPath" `
     -ManagementEnvironmentVersion "$targetVersion" `
     -ManagementEnvironmentPlatform "$platform" `

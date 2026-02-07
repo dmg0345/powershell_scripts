@@ -56,6 +56,11 @@ param (
     [String]
     $Module = "",
 
+    # Mandatory parameter with the PowerShell Core management environment path resolved by the bootstrap scripts.
+    [Parameter(Mandatory = $true)]
+    [String]
+    $ManagementEnvironmentDir,
+
     # Mandatory parameter with the PowerShell Core executable as resolved by the bootstrap script.
     [Parameter(Mandatory = $true)]
     [String]
@@ -85,25 +90,24 @@ $ErrorActionPreference = "Stop";
 $ProgressPreference = 'SilentlyContinue';
 
 # [Declarations] #######################################################################################################
-# Path to the PowerShell Core executable, as resolved by the bootstrap script.
-$PWSH_EXE = $ManagementEnvironmentPwsh;
+# Path to the root directory where the bootstrap scripts are located, must match the bootstrap scripts.
+$ROOT_DIR = ".";
 # The platform running the management environment, as resolved by the bootstrap script.
 $PLATFORM = $ManagementEnvironmentPlatform;
-# Path to the root directory where the bootstrap scripts are located, must match the bootstrap scripts.
-$ROOT_DIR = Resolve-Path -Path (Join-Path -Path "$PSScriptRoot" -ChildPath "..");
 
-# Path to the PowerShell Core management environment directory, must match the bootstrap scripts.
-$PWSH_MANAGE_ENV_DIR = Join-Path -Path "$ROOT_DIR" -ChildPath ".manage-env";
+# Path to the PowerShell Core executable, as resolved by the bootstrap script.
+$PWSH_EXE = $ManagementEnvironmentPwsh;
+# Path to the PowerShell Core management environment directory, as resolved by the bootstrap script.
+$PWSH_MANAGE_ENV_DIR = $ManagementEnvironmentDir;
 # Path to a temporary directory within the management environment directory.
 $PWSH_MANAGE_ENV_TMP_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "tmp-dir";
-# Path to a directory with the local dependencies.
+# Path to a directory with the local dependencies, must match the bootstrap scripts.
 $PWSH_MANAGE_ENV_DEP_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "local-deps";
 # Path to the locked management environment configuration YAML file, must match the bootstrap scripts.
 $PWSH_MANAGE_ENV_LOCK_FILE = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "manage-env.lock.yml";
-
-# PowerShell Core scripts local dependency pinned version,as resolved by the bootstrap scripts.
+# PowerShell Core scripts local dependency pinned version, as resolved by the bootstrap scripts.
 $PWSH_SCRIPTS_VERSION = $ManagementEnvironmentVersion;
-# Path to the PowerShell Core scripts local dependency directory.
+# Path to the PowerShell Core scripts local dependency directory, must match the bootstrap scripts.
 $PWSH_SCRIPTS_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DEP_DIR" -ChildPath "pwsh-scripts";
 # Path to the PowerShell Core scripts PowerShell modules directory.
 $PWSH_SCRIPTS_MODULES_DIR = Join-Path -Path "$PWSH_SCRIPTS_DIR" -ChildPath "modules";
@@ -387,9 +391,8 @@ function Install-LocalDependency
         }
 
         # Ensure the lock file is created after success.
-        $relDir = [System.IO.Path]::GetRelativePath("${SCRIPT:ROOT_DIR}", "${SCRIPT:YQ_EXE}");
         Set-Content -Path "${SCRIPT:YQ_LOCK_FILE}" `
-            -Value "${SCRIPT:YQ_VERSION}:${SCRIPT:PLATFORM}:${relDir}" `
+            -Value "${SCRIPT:YQ_VERSION}:${SCRIPT:PLATFORM}:${SCRIPT:YQ_EXE}" `
             -NoNewline -Encoding "utf8";
     }
 
@@ -457,9 +460,8 @@ function Install-LocalDependency
         }
 
         # Ensure the lock file is created after success.
-        $relDir = [System.IO.Path]::GetRelativePath("${SCRIPT:ROOT_DIR}", "${SCRIPT:HJSON_EXE}");
         Set-Content -Path "${SCRIPT:HJSON_LOCK_FILE}" `
-            -Value "${SCRIPT:HJSON_VERSION}:${SCRIPT:PLATFORM}:$relDir" `
+            -Value "${SCRIPT:HJSON_VERSION}:${SCRIPT:PLATFORM}:${SCRIPT:HJSON_EXE}" `
             -NoNewline -Encoding "utf8";
     }
 

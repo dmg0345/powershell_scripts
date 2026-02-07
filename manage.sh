@@ -12,15 +12,18 @@ set -euo pipefail
 # [Declarations] #######################################################################################################
 # Path to the management environment configuration YAML file for the management environment.
 # shellcheck disable=SC2155
-readonly PWSH_MANAGE_ENV_YAML_FILE="$(realpath "$(dirname "${0}")")/manage-env.yml";
+readonly PWSH_MANAGE_ENV_YAML_FILE="./manage-env.yml";
 # Path to the management environment directory.
 # shellcheck disable=SC2155
-readonly PWSH_MANAGE_ENV_DIR="$(realpath "$(dirname "${0}")")/.manage-env";
+readonly PWSH_MANAGE_ENV_DIR="./.manage-env";
+# Path to a directory with the local dependencies.
+readonly PWSH_MANAGE_ENV_DEP_DIR="${PWSH_MANAGE_ENV_DIR}/local-deps";
 # Path to the lock file of an already configured management environment.
 readonly PWSH_MANAGE_ENV_LOCK_FILE="${PWSH_MANAGE_ENV_DIR}/manage-env.lock.yml";
+# Path to the PowerShell Core scripts local dependency directory.
+readonly PWSH_SCRIPTS_DIR="${PWSH_MANAGE_ENV_DEP_DIR}/pwsh-scripts";
 # Path to the PowerShell Core main management script where to delegate the logic past the bootstrap phase.
-readonly PWSH_MANAGE_ENV_MAIN_SCRIPT_FILE="${PWSH_MANAGE_ENV_DIR}/manage.main.ps1";
-
+readonly PWSH_SCRIPTS_MAIN_SCRIPT_FILE"${PWSH_SCRIPTS_DIR}/manage.main.ps1";
 # Minimum PowerShell Core version.
 readonly PWSH_VERSION_MIN="7.4.3";
 # Major version of the minimum PowerShell Core version.
@@ -97,8 +100,11 @@ function Install-ManagementEnvironment()
     # Log start of installation.
     echo "Installing local management environment '${1}'...";
 
+    # Ensure the destination folder where the main management script file will be deployed exists.
+    mkdir -p "${PWSH_SCRIPTS_DIR}";
+
     # Download the local main management script file and install it in the folder.
-    curl -Lfo "${PWSH_MANAGE_ENV_MAIN_SCRIPT_FILE}" \
+    curl -Lfo "${PWSH_SCRIPTS_MAIN_SCRIPT_FILE}" \
         "https://raw.githubusercontent.com/dmg0345/powershell_scripts/${1}/manage.main.ps1";
 
     # Lock version with the contents of the original YAML.
@@ -252,6 +258,7 @@ fi
 
 # Delegate further execution to PowerShell Core and exit with its error code.
 "${pwshPath}" -File "${PWSH_MANAGE_ENV_MAIN_SCRIPT_FILE}" \
+    -ManagementEnvironmentDir "${PWSH_MANAGE_ENV_DIR}" \
     -ManagementEnvironmentPwsh "${pwshPath}" \
     -ManagementEnvironmentVersion "${targetVersion}" \
     -ManagementEnvironmentPlatform "${platform}" \
