@@ -15,7 +15,7 @@ param (
     $Profile = "default",
 
     # Main command to execute, one of:
-    #   - 'version': Prints the version of the management environment to the standard output.
+    #   - 'init': Initializes the environment and prints the version to the standard output.
     #   - 'docker': Host command, forwards the script arguments to Docker along with other relevant arguments.
     #   - 'docker-print': Host command, prints details about networks, images, volumes, containers...
     #   - 'docker-clean': Host command, cleans stopped containers, unused images and networks, anonymous volumes and builder cache.
@@ -797,9 +797,12 @@ try
         # TODO: Do this with modules, rather than files.
     }
     # Check if running logic per main commands.
-    elseif ($Command -eq "version")
+    elseif ($Command -eq "init")
     {
-        Write-Output "$ManagementEnvironmentVersion - $ManagementEnvironmentPlatform";
+        Write-Log "PowerShell Core Path: '$ManagementEnvironmentPwsh'.";
+        Write-Log "Environment Directory: '$ManagementEnvironmentDir'.";
+        Write-Log "Version: '$ManagementEnvironmentVersion'.";
+        Write-Log "Platform: '$ManagementEnvironmentPlatform'";
     }
     elseif ($Command -eq "docker")
     {
