@@ -109,9 +109,6 @@ function Install-ManagementEnvironment()
 
     # Lock version with the contents of the original YAML.
     cat "${PWSH_MANAGE_ENV_YAML_FILE}" > "${PWSH_MANAGE_ENV_LOCK_FILE}";
-
-    # Report success in installation.
-    echo "Installed local management environment.";
 }
 
 # @brief Determines if the PowerShell Core given is available and satisfies version requirements.

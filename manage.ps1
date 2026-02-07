@@ -150,9 +150,6 @@ function Install-ManagementEnvironment
 
     # Lock version with the contents of the original YAML.
     Copy-Item -Path "${PWSH_MANAGE_ENV_YAML_FILE}" -Destination "${PWSH_MANAGE_ENV_LOCK_FILE}" -Force;
-
-    # Report success in installation.
-    Write-Output "Installed local management environment.";
 }
 
 function Test-Pwsh
