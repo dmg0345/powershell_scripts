@@ -86,9 +86,9 @@ $ProgressPreference = 'SilentlyContinue';
 
 # [Declarations] #######################################################################################################
 # The platform running the management environment, as resolved by the bootstrap script.
-$PLATFORM = $ManageEnvironmentPlatform;
+$PLATFORM = $ManagementEnvironmentPlatform;
 # Path to the root directory where the bootstrap scripts are located, must match the bootstrap scripts.
-$ROOT_DIR = Resolve-Path -Path (Join-Path -Path "$PSScriptRoot" -ChildPath "..").Path;
+$ROOT_DIR = Resolve-Path -Path (Join-Path -Path "$PSScriptRoot" -ChildPath "..");
 
 # Path to the PowerShell Core management environment directory, must match the bootstrap scripts.
 $PWSH_MANAGE_ENV_DIR = Join-Path -Path "$ROOT_DIR" -ChildPath ".manage-env";
@@ -100,7 +100,7 @@ $PWSH_MANAGE_ENV_DEP_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "lo
 $PWSH_MANAGE_ENV_LOCK_FILE = Join-Path -Path "$PWSH_MANAGE_ENV_DIR" -ChildPath "manage-env.lock.yml";
 
 # PowerShell Core scripts local dependency pinned version,as resolved by the bootstrap scripts.
-$PWSH_SCRIPTS_VERSION = $ManageEnvironmentVersion;
+$PWSH_SCRIPTS_VERSION = $ManagementEnvironmentVersion;
 # Path to the PowerShell Core scripts local dependency directory.
 $PWSH_SCRIPTS_DIR = Join-Path -Path "$PWSH_MANAGE_ENV_DEP_DIR" -ChildPath "pwsh-scripts";
 # Path to the PowerShell Core scripts PowerShell modules directory.
@@ -113,7 +113,7 @@ $PWSH_SCRIPTS_USER_CONFIGS_DIR = Join-Path -Path "$ROOT_DIR" -ChildPath ".manage
 $PWSH_SCRIPTS_LOCK_FILE = Join-Path -Path "$PWSH_SCRIPTS_DIR" -ChildPath ".lock";
 
 # Path to the PowerShell Core executable, as resolved by the bootstrap script.
-$PWSH_EXE = $ManageEnvironmentPwsh;
+$PWSH_EXE = $ManagementEnvironmentPwsh;
 
 # Path to the 'yq' CLI utility local dependency, resolved at runtime.
 $YQ_EXE = $null;
@@ -291,6 +291,9 @@ function Install-LocalDependency
         Remove-Item -Path "$PWSH_SCRIPTS_DIR" -Force -Recurse -ErrorAction 'SilentlyContinue';
         New-Item -Path "$PWSH_SCRIPTS_DIR" -ItemType "Directory" -Force | Out-Null;
 
+        # Download from Git Archive API exposed in GitHub, so that a Git dependency is not needed.
+        Write-Output "Installing PowerShell Core scripts '$PWSH_SCRIPTS_VERSION' in local environment...";
+
         # Select correct namespace in Git archive URL scheme by inferring tag versioning format.
         if ($PWSH_SCRIPTS_VERSION -match "^[0-9]*\.[0-9]*\.[0-9]*$") { $dlPath = "tags/$PWSH_SCRIPTS_VERSION"; }
         else { $dlPath = "heads/$PWSH_SCRIPTS_VERSION"; }
@@ -435,7 +438,7 @@ function Install-LocalDependency
     }
 
     # Ensure installation completed successfully.
-    if (-not (Test-LocalDependencies -Dependency "$Dependency"))
+    if (-not (Test-LocalDependency -Dependency "$Dependency"))
     {
         throw "Installation of local dependency '$Dependency' in local environment failed."
     }
@@ -735,7 +738,7 @@ try
     New-Item "$PWSH_MANAGE_ENV_TMP_DIR" -ItemType Directory -Force | Out-Null;
 
     # Install all the local dependencies first.
-    Install-LocalDependencies -Dependency 'all';
+    Install-LocalDependency -Dependency 'all';
 
     # Ensure the minimal modules are imported.
     Import-Module -Name "$PWSH_SCRIPTS_MODULES_DIR/commons.psm1" -Force `
