@@ -216,7 +216,7 @@ function Test-LocalDependency
         {
             # Attempt to read the contents of the lock file, and check if there is a version match.
             $lockContents = Get-Content -Path "$PWSH_SCRIPTS_LOCK_FILE" -Raw -Encoding "utf8";
-            @($lockVersion, $lockPlatform) = ($lockContents -split ":");
+            ($lockVersion, $lockPlatform) = $lockContents -split ":";
             if (($lockVersion -ne "$PWSH_SCRIPTS_VERSION") -or ($lockPlatform -ne "$PLATFORM"))
             {
                 return $false;
@@ -232,7 +232,7 @@ function Test-LocalDependency
         {
             # Attempt to read the contents of the lock file, and check if there is a version match.
             $lockVersion = Get-Content -Path "$YQ_LOCK_FILE" -Raw -Encoding "utf8";
-            @($lockVersion, $lockPlatform, $lockPathExe) = ($lockContents -split ":");
+            ($lockVersion, $lockPlatform, $lockPathExe) = $lockContents -split ":";
             if (($lockVersion -ne "$YQ_VERSION") -or ($lockPlatform -ne "$PLATFORM"))
             {
                 return $false;
@@ -250,7 +250,7 @@ function Test-LocalDependency
         {
             # Attempt to read the contents of the lock file, and check if there is a version match.
             $lockVersion = Get-Content -Path "$HJSON_LOCK_FILE" -Raw -Encoding "utf8";
-            @($lockVersion, $lockPlatform, $lockPathExe) = ($lockContents -split ":");
+            ($lockVersion, $lockPlatform, $lockPathExe) = $lockContents -split ":";
             if (($lockVersion -ne "$HJSON_VERSION") -or ($lockPlatform -ne "$PLATFORM"))
             {
                 return $false;
