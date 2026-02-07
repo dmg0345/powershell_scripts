@@ -36,10 +36,14 @@ COPY --chown=devuser:devusers --from=dev-container-tools                        
 RUN cat << 'EOF' | dos2unix >> "${DEV_CONTAINER_UP_SCRIPT_FILE}"
 cd "$DEV_CONTAINER_VOLUME_DIR";
 
-# Clone project if it does not exist, and create symbolic link to it from workspace directory.
+# Check if cloned project already exists.
 if [[ ! -d "./powershell_scripts" ]]; then
+    # Clone project. and create symbolic link to workspace directory.
     git clone --recurse-submodules git@github.com:dmg0345/powershell_scripts.git;
     ln -sf "/dev-container-volume/powershell_scripts" "/dev-container-volume/vscode-workspace";
+    # Initialize management environment in project.
+    cd "./powershell_scripts";
+    ./manage.sh -Command init;
 fi;
 
 EOF

@@ -1,0 +1,10 @@
+// Visual Studio Code extension 'mkhl.shfmt' settings file, for details refer to:
+//   - https://marketplace.visualstudio.com/items?itemName=mkhl.shfmt
+// Do not edit manually — changes will be overwritten.
+{
+    // Point towards the 'shfmt' executable and specify formatting arguments.
+    "shfmt.executablePath": "git",
+    "shfmt.executableArgs": [],
+    // Keep setting always true for backwards compatibility.
+    "shfmt.formatIgnored": true
+}

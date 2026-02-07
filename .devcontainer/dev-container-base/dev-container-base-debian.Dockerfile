@@ -1,4 +1,4 @@
-# Dev Container base image with Debian Dockerfile file, for details, refer to: 
+# Dev Container base image with Debian Dockerfile file, for details, refer to:
 #   - https://docs.docker.com/reference/dockerfile/
 
 # syntax=docker/dockerfile:1
@@ -20,6 +20,10 @@ RUN apt-get --assume-yes update;                                                
     apt-get --assume-yes --show-progress --no-install-recommends install                                               \
     ## Git related packages ############################################################################################
     git=1:2.47.3-0+deb13u1                                                                                             \
+    ## Bash related packages ###########################################################################################
+    bash=5.2.37-2+b7                                                                                                   \
+    shellcheck=0.10.0-1                                                                                                \
+    shfmt=3.8.0-1                                                                                                      \
     ## PowerShell related packages #####################################################################################
     libicu76=76.1-4                                                                                                    \
     ## Compression / Decompression related packages ####################################################################
@@ -33,7 +37,6 @@ RUN apt-get --assume-yes update;                                                
     openssh-client=1:10.0p1-7                                                                                          \
     ## Other ###########################################################################################################
     dos2unix=7.5.2-1                                                                                                   \
-    bash=5.2.37-2+b7                                                                                                   \
     nano=8.4-1                                                                                                         \
     locales=2.41-12+deb13u1;                                                                                           \
                                                                                                                        \
@@ -49,6 +52,10 @@ RUN apt-get --assume-yes update;                                                
     apt-get --assume-yes --show-progress --no-install-recommends install                                               \
     ## Git related packages ############################################################################################
     git=1:2.39.5-0+deb12u3                                                                                             \
+    ## Bash related packages ###########################################################################################
+    bash=5.2.15-2+b10                                                                                                  \
+    shellcheck=0.9.0-1                                                                                                 \
+    shfmt=3.6.0-1+b2                                                                                                   \
     ## PowerShell related packages #####################################################################################
     libicu72=72.1-3+deb12u1                                                                                            \
     ## Compression / Decompression related packages ####################################################################
@@ -62,7 +69,6 @@ RUN apt-get --assume-yes update;                                                
     openssh-client=1:9.2p1-2+deb12u7                                                                                   \
     ## Other ###########################################################################################################
     dos2unix=7.4.3-1                                                                                                   \
-    bash=5.2.15-2+b10                                                                                                  \
     nano=7.2-1+deb12u1                                                                                                 \
     locales=2.36-9+deb12u13;                                                                                           \
                                                                                                                        \
@@ -110,6 +116,12 @@ RUN curl -fLvo "./pwsh.deb" "https://github.com/PowerShell/PowerShell/releases/d
 
 # To switch to PowerShell Core shell at any time in the build stage, use the following directive:
 # SHELL ["/usr/bin/pwsh", "-Command", "$PSNativeCommandUseErrorActionPreference = $true; $ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+# Download and install PowerShell Script Analyzer linter and formatter, for details refer to:
+#   - https://learn.microsoft.com/en-gb/powershell/utility-modules/psscriptanalyzer/overview?view=ps-modules#installing-psscriptanalyzer
+#   - https://www.powershellgallery.com/packages/PSScriptAnalyzer
+#   - https://github.com/PowerShell/PSScriptAnalyzer
+RUN pwsh -Command "Install-Module -Name PSScriptAnalyzer -RequiredVersion 1.24.0 -Scope AllUsers -AcceptLicense";
 
 # Make PowerShell Core shell the default shell for 'devuser'.
 RUN chsh --shell /usr/bin/pwsh devuser;

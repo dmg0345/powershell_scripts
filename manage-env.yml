@@ -22,7 +22,7 @@ profiles:
           - "ms-vscode.powershell"
           - "github.vscode-github-actions"
           - "phil294.git-log--graph"
-          - "timonwong.shellcheck"
+          - "mkhl.shfmt"
         deployment-file: "./.vscode/settings.json"
       dev-container-settings:
         user-configs-dir: "./.devcontainer"

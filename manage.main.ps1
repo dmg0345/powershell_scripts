@@ -198,6 +198,14 @@ $DEV_CONTAINER_GITHUB_SSH_AUTH_KEY_FILE = $null;
 $DEV_CONTAINER_VNC_SERVER_PASSWORD = $null;
 # VNC server geometry to use in Dev Container, resolved at runtime.
 $DEV_CONTAINER_VNC_SERVER_GEOMETRY = $null;
+# Path to the PowerShell Script Analyzer configuration file, resolved at runtime.
+$DEV_CONTAINER_PSSA_CONFIG_FILE = `
+    Join-Path -Path "$PWSH_SCRIPTS_COMMON_CONFIGS_DIR" -ChildPath "ps-script-analyzer" "ps-script-analyzer-rules.psd1";
+# Path to the ShellCheck configuration file, resolved at runtime.
+$DEV_CONTAINER_SHELLCHECK_CONFIG_FILE = `
+    Join-Path -Path "$PWSH_SCRIPTS_COMMON_CONFIGS_DIR" -ChildPath "shellcheck" "shellcheck.rc";
+# Command line arguments to pass to the Shell Formatter, resolved at runtime.
+$DEV_CONTAINER_SHFMT_CONFIG_ARGS = @("-ln=bash", "-i=4", "-bn", "-ci", "-sr", "-fn");
 
 # [Internal Functions] #################################################################################################
 function Test-LocalDependency
@@ -548,6 +556,15 @@ function Resolve-ManagementEnvironment
     $pDevContainerVncServer = $pDevContainer["vnc-server"] ?? @{};
     $SCRIPT:DEV_CONTAINER_VNC_SERVER_PASSWORD = $pDevContainerVncServer["password"] ?? $SCRIPT:DEV_CONTAINER_VNC_SERVER_PASSWORD;
     $SCRIPT:DEV_CONTAINER_VNC_SERVER_GEOMETRY = $pDevContainerVncServer["geometry"] ?? $SCRIPT:DEV_CONTAINER_VNC_SERVER_GEOMETRY;
+    ## Resolve 'dev-container:ps-script-analyzer' section.
+    $pDevContainerPSScriptAnalyzer = $pDevContainer["ps-script-analyzer"] ?? @{};
+    $SCRIPT:DEV_CONTAINER_PSSA_CONFIG_FILE = $pDevContainerPSScriptAnalyzer["config-file"] ?? $SCRIPT:DEV_CONTAINER_PSSA_CONFIG_FILE;
+    ## Resolve 'dev-container:shellcheck' section.
+    $pDevContainerShellcheck = $pDevContainer["shellcheck"] ?? @{};
+    $SCRIPT:DEV_CONTAINER_SHELLCHECK_CONFIG_FILE = $pDevContainerShellcheck["config-file"] ?? $SCRIPT:DEV_CONTAINER_SHELLCHECK_CONFIG_FILE;
+    ## Resolve 'dev-container:shfmt' section.
+    $pDevContainerShfmt = $pDevContainer["shfmt"] ?? @{};
+    $SCRIPT:DEV_CONTAINER_SHFMT_CONFIG_ARGS = $pDevContainerShfmt["config-args"] ?? $SCRIPT:DEV_CONTAINER_SHFMT_CONFIG_ARGS;
 }
 
 function Invoke-Docker

@@ -5,10 +5,13 @@
     // Enable automatic start of the extension when opening a file with current working directory the workspace.
     "powershell.cwd": ".",
     "powershell.startAutomatically": true,
-    // Enable linter analysis at workspace level, providing a common configuration file.
-    // NOTE: Use bundled linter and unique common configuration file, as PowerShell scripts are not critical.
-    "powershell.scriptAnalysis.enable": true,
-    "powershell.scriptAnalysis.settingsPath": "./.manage-env/local-deps/pwsh-scripts/configs/pss-script-analyzer/pss-script-analyzer.psd1",
+    // Disable linter analysis at workspace level, run it from the command line..
+    // NOTE: Bundled linter can't be replaced, thus it is not possible to keep a fixed version. There is also
+    // integration issues, for details refer to:
+    //   - https://github.com/PowerShell/vscode-powershell/issues/4653
+    //   - https://github.com/PowerShell/vscode-powershell/issues/3168
+    "powershell.scriptAnalysis.enable": false,
+    "powershell.scriptAnalysis.settingsPath": "",
     "powershell.analyzeOpenDocumentsOnly": false,
     // Disable run buttons, code folding, prompts and panels.
     "powershell.buttons.showRunButtons": false,
@@ -16,6 +19,9 @@
     "powershell.promptToUpdatePowerShell": false,
     "powershell.sideBar.CommandExplorerVisibility": false,
     // Configure code formatting.
+    // NOTE: These settings must match the relevant rules for PSScriptAnalyzer, the extension will not use
+    // the rules defined in the .psd1 file, it will only take analysis rules from there. For details refer to:
+    //   - https://github.com/PowerShell/vscode-powershell/issues/3024
     "powershell.codeFormatting.addWhitespaceAroundPipe": true,
     "powershell.codeFormatting.alignPropertyValuePairs": false,
     "powershell.codeFormatting.autoCorrectAliases": false,
