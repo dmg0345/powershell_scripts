@@ -166,13 +166,16 @@ $VSCODE_SETTINGS_DEPLOYMENT_FILE = Join-Path -Path "$ROOT_DIR" -ChildPath ".vsco
 # Path to the host Visual Studio Code Dev Container CLI executable, resolved at runtime.
 $VSCODE_DEV_CONTAINER_EXE = "devcontainer";
 # Path to the Visual Studio Code Dev Container settings common configurations directory.
-$VSCODE_DEV_CONTAINER_SETTINGS_COMMON_CONFIGS_DIR = Join-Path -Path "$PWSH_SCRIPTS_COMMON_CONFIGS_DIR" -ChildPath "vscode-dev-container-settings";
+$VSCODE_DEV_CONTAINER_SETTINGS_COMMON_CONFIGS_DIR = `
+    Join-Path -Path "$PWSH_SCRIPTS_COMMON_CONFIGS_DIR" -ChildPath "vscode-dev-container-settings";
 # Path to the Visual Studio Code Dev Container settings user configurations directory, resolved at runtime.
-$VSCODE_DEV_CONTAINER_SETTINGS_USER_CONFIGS_DIR = Join-Path -Path "$PWSH_SCRIPTS_USER_CONFIGS_DIR" -ChildPath "vscode-dev-container-settings";
+$VSCODE_DEV_CONTAINER_SETTINGS_USER_CONFIGS_DIR = `
+    Join-Path -Path "$PWSH_SCRIPTS_USER_CONFIGS_DIR" -ChildPath "vscode-dev-container-settings";
 # Visual Studio Code Dev Container settings configuration scopes, resolved at runtime.
 $VSCODE_DEV_CONTAINER_SETTINGS_CONFIG_SCOPES = @();
 # Visual Studio Code Dev Container settings deployment file, resolved at runtime.
-$VSCODE_DEV_CONTAINER_SETTINGS_DEPLOYMENT_FILE = Join-Path -Path "$ROOT_DIR" -ChildPath ".devcontainer" "devcontainer.json";
+$VSCODE_DEV_CONTAINER_SETTINGS_DEPLOYMENT_FILE = `
+    Join-Path -Path "$ROOT_DIR" -ChildPath ".devcontainer" "devcontainer.json";
 
 # Git username to use in Dev Container, resolved at runtime.
 $DEV_CONTAINER_GIT_USERNAME = $null;
@@ -215,9 +218,10 @@ function Test-LocalDependency
         try
         {
             # Attempt to read the contents of the lock file, and check if there is a version match.
-            $lockContents = Get-Content -Path "$PWSH_SCRIPTS_LOCK_FILE" -Raw -Encoding "utf8";
-            ($lockVersion, $lockPlatform) = $lockContents -split ":";
-            if (($lockVersion -ne "$PWSH_SCRIPTS_VERSION") -or ($lockPlatform -ne "$PLATFORM")) { return $false; }
+            $lockCnts = Get-Content -Path "${SCRIPT:PWSH_SCRIPTS_LOCK_FILE}" -Raw -Encoding "utf8";
+            ($lockVer, $lockPlt) = $lockCnts -split ":";
+            if (($lockVer -ne "${SCRIPT:PWSH_SCRIPTS_VERSION}") -or
+                ($lockPlt -ne "${SCRIPT:PLATFORM}")) { return $false; }
         }
         catch { return $false; }
     }
@@ -228,14 +232,14 @@ function Test-LocalDependency
         try
         {
             # Attempt to read the contents of the lock file, and check if there is a version match.
-            $lockContents = Get-Content -Path "$YQ_LOCK_FILE" -Raw -Encoding "utf8";
-            ($lockVersion, $lockPlatform, $lockPathExe) = $lockContents -split ":";
-            if (($lockVersion -ne "$YQ_VERSION") -or ($lockPlatform -ne "$PLATFORM")) { return $false; }
+            $lockCnts = Get-Content -Path "${SCRIPT:YQ_LOCK_FILE}" -Raw -Encoding "utf8";
+            ($lockVer, $lockPlt, $lockExe) = $lockCnts -split ":";
+            if (($lockVer -ne "${SCRIPT:YQ_VERSION}") -or ($lockPlt -ne "${SCRIPT:PLATFORM}")) { return $false; }
             # Query the executable and check if there is a version match.
-            $currVersion = & "$lockPathExe" --version 2>$null;
-            if (-not ($currVersion -match ".*v$YQ_VERSION`$")) { return $false; }
+            $currVer = & "$lockExe" --version 2>$null;
+            if (-not ($currVer -match ".*v${SCRIPT:YQ_VERSION}`$")) { return $false; }
             # Resolve executable path from locked file.
-            $YQ_EXE = $lockPathExe;
+            $SCRIPT:YQ_EXE = $lockPathExe;
         }
         catch { return $false; }
     }
@@ -246,14 +250,14 @@ function Test-LocalDependency
         try
         {
             # Attempt to read the contents of the lock file, and check if there is a version match.
-            $lockContents = Get-Content -Path "$HJSON_LOCK_FILE" -Raw -Encoding "utf8";
-            ($lockVersion, $lockPlatform, $lockPathExe) = $lockContents -split ":";
-            if (($lockVersion -ne "$HJSON_VERSION") -or ($lockPlatform -ne "$PLATFORM")) { return $false; }
+            $lockCnts = Get-Content -Path "${SCRIPT:HJSON_LOCK_FILE}" -Raw -Encoding "utf8";
+            ($lockVer, $lockPlt, $lockExe) = $lockCnts -split ":";
+            if (($lockVer -ne "${SCRIPT:HJSON_VERSION}") -or ($lockPlt -ne "${SCRIPT:PLATFORM}")) { return $false; }
             # Query the executable and check if there is a version match.
-            $currVersion = & "$lockPathExe" -v 2>$null;
-            if (-not ($currVersion -match "^v$HJSON_VERSION`$")) { return $false; }
+            $currVer = & "$lockExe" -v 2>$null;
+            if (-not ($currVer -match "^v${SCRIPT:HJSON_VERSION}`$")) { return $false; }
             # Resolve executable path from locked file.
-            $HJSON_EXE = $lockPathExe;
+            $SCRIPT:HJSON_EXE = $lockExe;
         }
         catch { return $false; }
     }
@@ -285,169 +289,178 @@ function Install-LocalDependency
     }
 
     # If the path to the local dependency folder does not exist, ensure it is created.
-    New-Item -Path "$PWSH_MANAGE_ENV_DEP_DIR" -ItemType Directory -Force | Out-Null;
+    New-Item -Path "${SCRIPT:PWSH_MANAGE_ENV_DEP_DIR}" -ItemType Directory -Force | Out-Null;
 
     # Create folder specific for downloads in the temporary folder.
-    $tmpDlsDir = Join-Path -Path "$PWSH_MANAGE_ENV_TMP_DIR" -ChildPath "$(New-Guid)";
+    $tmpDlsDir = Join-Path -Path "${SCRIPT:PWSH_MANAGE_ENV_TMP_DIR}" -ChildPath "$(New-Guid)";
     New-Item -Path "$tmpDlsDir" -ItemType Directory -Force | Out-Null;
 
     # Install PowerShell Core scripts dependency.
     if ($Dependency -in @("all", "pwsh-scripts"))
     {
         # Remove current PowerShell Core scripts, if any, and create it anew.
-        Remove-Item -Path "$PWSH_SCRIPTS_DIR" -Force -Recurse -ErrorAction 'SilentlyContinue';
-        New-Item -Path "$PWSH_SCRIPTS_DIR" -ItemType "Directory" -Force | Out-Null;
+        Remove-Item -Path "${SCRIPT:PWSH_SCRIPTS_DIR}" -Force -Recurse -ErrorAction 'SilentlyContinue';
+        New-Item -Path "${SCRIPT:PWSH_SCRIPTS_DIR}" -ItemType "Directory" -Force | Out-Null;
 
         # Download from Git Archive API exposed in GitHub, so that a Git dependency is not needed.
-        Write-Output "Installing PowerShell Core scripts '$PWSH_SCRIPTS_VERSION' in local environment...";
+        Write-Output "Installing PowerShell Core scripts '${SCRIPT:PWSH_SCRIPTS_VERSION}' in local environment...";
 
         # Select correct namespace in Git archive URL scheme by inferring tag versioning format.
-        if ($PWSH_SCRIPTS_VERSION -match "^[0-9]*\.[0-9]*\.[0-9]*$") { $dlPath = "tags/$PWSH_SCRIPTS_VERSION"; }
-        else { $dlPath = "heads/$PWSH_SCRIPTS_VERSION"; }
+        $tagRegex = "^[0-9]*\.[0-9]*\.[0-9]*$";
+        if (${SCRIPT:PWSH_SCRIPTS_VERSION} -match "$tagRegex") { $dlPath = "tags/${SCRIPT:PWSH_SCRIPTS_VERSION}"; }
+        else { $dlPath = "heads/${SCRIPT:PWSH_SCRIPTS_VERSION}"; }
 
         # Download file.
         $outFile = Join-Path -Path "$tmpDlsDir" -ChildPath "pwsh-scripts.tar.gz";
         Invoke-WebRequest -OutFile "$outFile" `
             -Uri "https://github.com/dmg0345/powershell_scripts/archive/refs/${dlPath}.tar.gz";
         # Extract to destination folder.
-        tar -xzf "$outFile" --strip-components 1 -C "$PWSH_SCRIPTS_DIR";
+        tar -xzf "$outFile" --strip-components 1 -C "${SCRIPT:PWSH_SCRIPTS_DIR}";
 
         # Ensure the lock file is created after success.
-        Set-Content -Path "$PWSH_SCRIPTS_LOCK_FILE" -Value "${PWSH_SCRIPTS_VERSION}:${PLATFORM}" -NoNewline -Encoding "utf8";
+        Set-Content -Path "${SCRIPT:PWSH_SCRIPTS_LOCK_FILE}" `
+            -Value "${SCRIPT:PWSH_SCRIPTS_VERSION}:${SCRIPT:PLATFORM}" `
+            -NoNewline -Encoding "utf8";
     }
 
     # Install 'yq' CLI preprocessor dependency.
     if ($Dependency -in @("all", "yq"))
     {
         # Remove current 'yq' scripts, if any, and create it anew.
-        Remove-Item -Path "$YQ_DIR" -Force -Recurse -ErrorAction 'SilentlyContinue';
-        New-Item -Path "$YQ_DIR" -ItemType "Directory" -Force | Out-Null;
+        Remove-Item -Path "${SCRIPT:YQ_DIR}" -Force -Recurse -ErrorAction 'SilentlyContinue';
+        New-Item -Path "${SCRIPT:YQ_DIR}" -ItemType "Directory" -Force | Out-Null;
 
         # Perform download and installation depending on platform.
-        Write-Output "Installing yq CLI tool '$YQ_VERSION' in local environment...";
-        switch ($PLATFORM)
+        Write-Output "Installing yq CLI tool '${SCRIPT:YQ_VERSION}' in local environment...";
+        switch ($SCRIPT:PLATFORM)
         {
             "linux-x64"
             {
                 # Download file.
                 $outFile = Join-Path -Path "$tmpDlsDir" -ChildPath "yq.tar.gz";
                 Invoke-WebRequest -OutFile "$outFile" `
-                    -Uri "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_amd64.tar.gz";
+                    -Uri "https://github.com/mikefarah/yq/releases/download/v${SCRIPT:YQ_VERSION}/yq_linux_amd64.tar.gz";
                 # Extract to temporary folder with downloads.
                 tar -xzf "$outFile" -C "$tmpDlsDir";
                 # Resolve binary filenames from source to destination, and deploy it.
                 $srcBinary = Join-Path -Path "$tmpDlsDir" -ChildPath "yq_linux_amd64";
-                $destBinary = Join-Path -Path "$YQ_DIR" -ChildPath "yq_linux_amd64";
+                $destBinary = Join-Path -Path "${SCRIPT:YQ_DIR}" -ChildPath "yq_linux_amd64";
                 Move-Item -Path "$srcBinary" -Destination "$destBinary" -Force;
                 # Ensure files have proper permissions.
                 chmod +x "$destBinary";
                 # Resolve final directory for 'yq' executable.
-                $YQ_EXE = $destBinary;
+                $SCRIPT:YQ_EXE = $destBinary;
             }
             "darwin-64"
             {
                 # Download file.
                 $outFile = Join-Path -Path "$tmpDlsDir" -ChildPath "yq.tar.gz";
                 Invoke-WebRequest -OutFile "$outFile" `
-                    -Uri "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_darwin_amd64.tar.gz";
+                    -Uri "https://github.com/mikefarah/yq/releases/download/v${SCRIPT:YQ_VERSION}/yq_darwin_amd64.tar.gz";
                 # Extract to temporary folder with downloads.
                 tar -xzf "$outFile" -C "$tmpDlsDir";
                 # Resolve binary filenames from source to destination, and deploy it.
                 $srcBinary = Join-Path -Path "$tmpDlsDir" -ChildPath "yq_darwin_amd64";
-                $destBinary = Join-Path -Path "$YQ_DIR" -ChildPath "yq_darwin_amd64";
+                $destBinary = Join-Path -Path "${SCRIPT:YQ_DIR}" -ChildPath "yq_darwin_amd64";
                 Move-Item -Path "$srcBinary" -Destination "$destBinary" -Force;
                 # Ensure files have proper permissions.
                 chmod +x "$destBinary";
                 # Resolve final directory for 'yq' executable.
-                $YQ_EXE = $destBinary;
+                $SCRIPT:YQ_EXE = $destBinary;
             }
             "win-x64"
             {
                 # Download file.
                 $outFile = Join-Path -Path "$tmpDlsDir" -ChildPath "yq.zip";
                 Invoke-WebRequest -OutFile "$outFile" `
-                    -Uri "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_windows_amd64.zip";
+                    -Uri "https://github.com/mikefarah/yq/releases/download/v${SCRIPT:YQ_VERSION}/yq_windows_amd64.zip";
                 # Extract to temporary folder with downloads.
                 Expand-Archive -Path "$outFile" -DestinationPath "$tmpDlsDir";
                 # Resolve binary filenames from source to destination, and deploy it.
                 $srcBinary = Join-Path -Path "$tmpDlsDir" -ChildPath "yq_windows_amd64.exe";
-                $destBinary = Join-Path -Path "$YQ_DIR" -ChildPath "yq_windows_amd64.exe";
+                $destBinary = Join-Path -Path "${SCRIPT:YQ_DIR}" -ChildPath "yq_windows_amd64.exe";
                 Move-Item -Path "$srcBinary" -Destination "$destBinary" -Force;
                 # Resolve final directory for 'yq' executable.
-                $YQ_EXE = $destBinary;
+                $SCRIPT:YQ_EXE = $destBinary;
             }
-            default { throw "Unable to install 'yq' for platform '$PLATFORM'."; }
+            default { throw "Unable to install 'yq' for platform '${SCRIPT:PLATFORM}'."; }
         }
 
         # Ensure the lock file is created after success.
-        Set-Content -Path "$YQ_LOCK_FILE" -Value "${YQ_VERSION}:${PLATFORM}:${YQ_EXE}" -NoNewline -Encoding "utf8";
+        $relDir = [System.IO.Path]::GetRelativePath("${SCRIPT:ROOT_DIR}", "${SCRIPT:YQ_EXE}");
+        Set-Content -Path "${SCRIPT:YQ_LOCK_FILE}" `
+            -Value "${SCRIPT:YQ_VERSION}:${SCRIPT:PLATFORM}:${relDir}" `
+            -NoNewline -Encoding "utf8";
     }
 
     # Install 'hjson' CLI preprocessor dependency.
     if ($Dependency -in @("all", "hjson"))
     {
         # Remove current 'hjson' scripts, if any, and create it anew.
-        Remove-Item -Path "$HJSON_DIR" -Force -Recurse -ErrorAction 'SilentlyContinue';
-        New-Item -Path "$HJSON_DIR" -ItemType "Directory" -Force | Out-Null;
+        Remove-Item -Path "${SCRIPT:HJSON_DIR}" -Force -Recurse -ErrorAction 'SilentlyContinue';
+        New-Item -Path "${SCRIPT:HJSON_DIR}" -ItemType "Directory" -Force | Out-Null;
 
         # Perform download and installation depending on platform.
-        Write-Output "Installing hjson CLI tool '$HJSON_VERSION' in local environment...";
-        switch ($PLATFORM)
+        Write-Output "Installing hjson CLI tool '${SCRIPT:HJSON_VERSION}' in local environment...";
+        switch ($SCRIPT:PLATFORM)
         {
             "linux-x64"
             {
                 # Download file.
                 $outFile = Join-Path -Path "$tmpDlsDir" -ChildPath "hjson.tar.gz";
                 Invoke-WebRequest -OutFile "$outFile" `
-                    -Uri "https://github.com/hjson/hjson-go/releases/download/v${HJSON_VERSION}/hjson_v${HJSON_VERSION}_linux_amd64.tar.gz";
+                    -Uri "https://github.com/hjson/hjson-go/releases/download/v${SCRIPT:HJSON_VERSION}/hjson_v${SCRIPT:HJSON_VERSION}_linux_amd64.tar.gz";
                 # Extract to temporary folder with downloads.
                 tar -xzf "$outFile" -C "$tmpDlsDir";
                 # Resolve binary filenames from source to destination, and deploy it.
                 $srcBinary = Join-Path -Path "$tmpDlsDir" -ChildPath "hjson";
-                $destBinary = Join-Path -Path "$HJSON_DIR" -ChildPath "hjson";
+                $destBinary = Join-Path -Path "${SCRIPT:HJSON_DIR}" -ChildPath "hjson";
                 Move-Item -Path "$srcBinary" -Destination "$destBinary" -Force;
                 # Ensure files have proper permissions.
                 chmod +x "$destBinary";
                 # Resolve final directory for 'hjson' executable.
-                $HJSON_EXE = $destBinary;
+                $SCRIPT:HJSON_EXE = $destBinary;
             }
             "darwin-64"
             {
                 # Download file.
                 $outFile = Join-Path -Path "$tmpDlsDir" -ChildPath "hjson.tar.gz";
                 Invoke-WebRequest -OutFile "$outFile" `
-                    -Uri "https://github.com/hjson/hjson-go/releases/download/v${HJSON_VERSION}/hjson_v${HJSON_VERSION}_linux_amd64.tar.gz";
+                    -Uri "https://github.com/hjson/hjson-go/releases/download/v${SCRIPT:HJSON_VERSION}/hjson_v${SCRIPT:HJSON_VERSION}_linux_amd64.tar.gz";
                 # Extract to temporary folder with downloads.
                 tar -xzf "$outFile" -C "$tmpDlsDir";
                 # Resolve binary filenames from source to destination, and deploy it.
                 $srcBinary = Join-Path -Path "$tmpDlsDir" -ChildPath "hjson";
-                $destBinary = Join-Path -Path "$HJSON_DIR" -ChildPath "hjson";
+                $destBinary = Join-Path -Path "${SCRIPT:HJSON_DIR}" -ChildPath "hjson";
                 Move-Item -Path "$srcBinary" -Destination "$destBinary" -Force;
                 # Ensure files have proper permissions.
                 chmod +x "$destBinary";
                 # Resolve final directory for 'hjson' executable.
-                $HJSON_EXE = $destBinary;
+                $SCRIPT:HJSON_EXE = $destBinary;
             }
             "win-x64"
             {
                 # Download file.
                 $outFile = Join-Path -Path "$tmpDlsDir" -ChildPath "hjson.zip";
                 Invoke-WebRequest -OutFile "$outFile" `
-                    -Uri "https://github.com/hjson/hjson-go/releases/download/v${HJSON_VERSION}/hjson_v${HJSON_VERSION}_windows_amd64.zip";
+                    -Uri "https://github.com/hjson/hjson-go/releases/download/v${SCRIPT:HJSON_VERSION}/hjson_v${SCRIPT:HJSON_VERSION}_windows_amd64.zip";
                 # Extract to temporary folder with downloads.
                 Expand-Archive -Path "$outFile" -DestinationPath "$tmpDlsDir";
                 # Resolve binary filenames from source to destination, and deploy it.
                 $srcBinary = Join-Path -Path "$tmpDlsDir" -ChildPath "hjson.exe";
-                $destBinary = Join-Path -Path "$HJSON_DIR" -ChildPath "hjson.exe";
+                $destBinary = Join-Path -Path "${SCRIPT:HJSON_DIR}" -ChildPath "hjson.exe";
                 Move-Item -Path "$srcBinary" -Destination "$destBinary" -Force;
                 # Resolve final directory for 'hjson' executable.
-                $HJSON_EXE = $destBinary;
+                $SCRIPT:HJSON_EXE = $destBinary;
             }
-            default { throw "Unable to install 'hjson' for platform '$PLATFORM'."; }
+            default { throw "Unable to install 'hjson' for platform '${SCRIPT:PLATFORM}'."; }
         }
 
         # Ensure the lock file is created after success.
-        Set-Content -Path "$HJSON_LOCK_FILE" -Value "${HJSON_VERSION}:${PLATFORM}:${HJSON_EXE}" -NoNewline -Encoding "utf8";
+        $relDir = [System.IO.Path]::GetRelativePath("${SCRIPT:ROOT_DIR}", "${SCRIPT:HJSON_EXE}");
+        Set-Content -Path "${SCRIPT:HJSON_LOCK_FILE}" `
+            -Value "${SCRIPT:HJSON_VERSION}:${SCRIPT:PLATFORM}:$relDir" `
+            -NoNewline -Encoding "utf8";
     }
 
     # Ensure installation completed successfully.
@@ -476,8 +489,8 @@ function Resolve-ManagementEnvironment
     )
 
     # Parse and resolve the management YAML file to a hash table.
-    $manageEnv = Get-Content -Path "$PWSH_MANAGE_ENV_LOCK_FILE" -Encoding "utf8" -Raw |
-        & "$YQ_EXE" --output-format json |
+    $manageEnv = Get-Content -Path "${SCRIPT:PWSH_MANAGE_ENV_LOCK_FILE}" -Encoding "utf8" -Raw |
+        & "${SCRIPT:YQ_EXE}" --output-format json |
         ConvertFrom-Json;
 
     # Ensure the profiles top level key exists, and also the profile identifier within it.
@@ -490,49 +503,49 @@ function Resolve-ManagementEnvironment
 
     # Resolve 'docker' section.
     $pDocker = $p["docker"] ?? @{};
-    $DOCKER_EXE ??= $pDocker["cli"];
-    $DOCKER_PROJECT_NAME ??= $pDocker["project-name"];
+    $SCRIPT:DOCKER_EXE ??= $pDocker["cli"];
+    $SCRIPT:DOCKER_PROJECT_NAME ??= $pDocker["project-name"];
     ## Resolve 'docker:bake' section.
     $pDockerBake = $pDocker["bake"] ?? @{};
-    $DOCKER_BAKE_USER_CONFIGS_DIR ??= $pDockerBake["user-configs-dir"];
-    $DOCKER_BAKE_CONFIG_SCOPES ??= $pDockerBake["config-scopes"];
-    $DOCKER_BAKE_IMAGE_LOCAL_REGISTRY = $pDockerBake["image-local-registry"];
-    $DOCKER_BAKE_IMAGE_REGISTRY = $pDockerBake["image-registry"] ?? $DOCKER_BAKE_IMAGE_LOCAL_REGISTRY;
+    $SCRIPT:DOCKER_BAKE_USER_CONFIGS_DIR ??= $pDockerBake["user-configs-dir"];
+    $SCRIPT:DOCKER_BAKE_CONFIG_SCOPES ??= $pDockerBake["config-scopes"];
+    $SCRIPT:DOCKER_BAKE_IMAGE_LOCAL_REGISTRY = $pDockerBake["image-local-registry"];
+    $SCRIPT:DOCKER_BAKE_IMAGE_REGISTRY = $pDockerBake["image-registry"] ?? "${SCRIPT:DOCKER_BAKE_IMAGE_LOCAL_REGISTRY}";
     ## Resolve 'docker:compose' section.
     $pDockerCompose = $pDocker["compose"] ?? @{};
-    $DOCKER_COMPOSE_USER_CONFIGS_DIR ??= $pDockerCompose["user-configs-dir"];
-    $DOCKER_COMPOSE_CONFIG_SCOPES ??= $pDockerCompose["config-scopes"];
+    $SCRIPT:DOCKER_COMPOSE_USER_CONFIGS_DIR ??= $pDockerCompose["user-configs-dir"];
+    $SCRIPT:DOCKER_COMPOSE_CONFIG_SCOPES ??= $pDockerCompose["config-scopes"];
 
     # Resolve 'vscode' section.
     $pVscode = $p["vscode"] ?? @{};
-    $VSCODE_EXE ??= $pVscode["cli"];
+    $SCRIPT:VSCODE_EXE ??= $pVscode["cli"];
     ## Resolve 'vscode:settings' section.
     $pVscodeSettings = $pVscode["settings"] ?? @{};
-    $VSCODE_SETTINGS_USER_CONFIGS_DIR ??= $pVscodeSettings["user-configs-dir"];
-    $VSCODE_SETTINGS_CONFIG_SCOPES ??= $pVscodeSettings["config-scopes"];
-    $VSCODE_SETTINGS_DEPLOYMENT_FILE ??= $pVscodeSettings["deployment-file"];
+    $SCRIPT:VSCODE_SETTINGS_USER_CONFIGS_DIR ??= $pVscodeSettings["user-configs-dir"];
+    $SCRIPT:VSCODE_SETTINGS_CONFIG_SCOPES ??= $pVscodeSettings["config-scopes"];
+    $SCRIPT:VSCODE_SETTINGS_DEPLOYMENT_FILE ??= $pVscodeSettings["deployment-file"];
     ## Resolve 'vscode:dev-container-settings' section.
     $pVsCodeDevContainer = $pVscode["dev-container-settings"] ?? @{};
-    $VSCODE_DEV_CONTAINER_EXE ??= $pVsCodeDevContainer["cli"];
-    $VSCODE_DEV_CONTAINER_SETTINGS_USER_CONFIGS_DIR ??= $pVsCodeDevContainer["user-configs-dir"];
-    $VSCODE_DEV_CONTAINER_SETTINGS_CONFIG_SCOPES ??= $pVsCodeDevContainer["config-scopes"];
-    $VSCODE_DEV_CONTAINER_SETTINGS_DEPLOYMENT_FILE ??= $pVsCodeDevContainer["deployment-file"];
+    $SCRIPT:VSCODE_DEV_CONTAINER_EXE ??= $pVsCodeDevContainer["cli"];
+    $SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_USER_CONFIGS_DIR ??= $pVsCodeDevContainer["user-configs-dir"];
+    $SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_CONFIG_SCOPES ??= $pVsCodeDevContainer["config-scopes"];
+    $SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_DEPLOYMENT_FILE ??= $pVsCodeDevContainer["deployment-file"];
 
     # Resolve 'dev-container' section.
     $pDevContainer = $p["dev-container"] ?? @{};
     ## Resolve 'dev-container:git' section.
     $pDevContainerGit = $pDevContainer["git"] ?? @{};
-    $DEV_CONTAINER_GIT_USERNAME ??= $pDevContainerGit["username"];
-    $DEV_CONTAINER_GIT_EMAIL ??= $pDevContainerGit["email"];
-    $DEV_CONTAINER_GIT_SSH_SIGN_KEY_FILE ??= $pDevContainerGit["ssh-sign-key-file"];
+    $SCRIPT:DEV_CONTAINER_GIT_USERNAME ??= $pDevContainerGit["username"];
+    $SCRIPT:DEV_CONTAINER_GIT_EMAIL ??= $pDevContainerGit["email"];
+    $SCRIPT:DEV_CONTAINER_GIT_SSH_SIGN_KEY_FILE ??= $pDevContainerGit["ssh-sign-key-file"];
     ## Resolve 'dev-container:github' section.
     $pDevContainerGitHub = $pDevContainer["github"] ?? @{};
-    $DEV_CONTAINER_GITHUB_USERNAME ??= $pDevContainerGitHub["username"];
-    $DEV_CONTAINER_GITHUB_SSH_AUTH_KEY_FILE ??= $pDevContainerGitHub["ssh-auth-key-file"];
+    $SCRIPT:DEV_CONTAINER_GITHUB_USERNAME ??= $pDevContainerGitHub["username"];
+    $SCRIPT:DEV_CONTAINER_GITHUB_SSH_AUTH_KEY_FILE ??= $pDevContainerGitHub["ssh-auth-key-file"];
     ## Resolve 'dev-container:vnc-server' section.
     $pDevContainerVncServer = $pDevContainer["vnc-server"] ?? @{};
-    $DEV_CONTAINER_VNC_SERVER_PASSWORD ??= $pDevContainerVncServer["password"];
-    $DEV_CONTAINER_VNC_SERVER_GEOMETRY ??= $pDevContainerVncServer["geometry"];
+    $SCRIPT:DEV_CONTAINER_VNC_SERVER_PASSWORD ??= $pDevContainerVncServer["password"];
+    $SCRIPT:DEV_CONTAINER_VNC_SERVER_GEOMETRY ??= $pDevContainerVncServer["geometry"];
 }
 
 function Invoke-Docker
@@ -546,7 +559,7 @@ function Invoke-Docker
         $Args = @()
     )
     # Execute Docker forwarding arguments.
-    & "$DOCKER_EXE" @Args;
+    & "${SCRIPT:DOCKER_EXE}" @Args;
 }
 
 function Invoke-DockerBake
@@ -572,15 +585,15 @@ function Invoke-DockerBake
     if (-not $NoFiles)
     {
         # Collect all the common configuration files.
-        $commonBakeHclFiles = Get-OrderedFileSet -Path "$DOCKER_BAKE_COMMON_CONFIGS_DIR" `
+        $commonBakeHclFiles = Get-OrderedFileSet -Path "${SCRIPT:DOCKER_BAKE_COMMON_CONFIGS_DIR}" `
             -FileSuffix "docker-bake" `
             -FileExtension "hcl" `
-            -FileScopes $DOCKER_BAKE_CONFIG_SCOPES;
+            -FileScopes ${SCRIPT:DOCKER_BAKE_CONFIG_SCOPES};
         # Collect all the user configuration files, don't require them to be ordered.
-        $userBakeHclFiles = Get-OrderedFileSet -Path "$DOCKER_BAKE_USER_CONFIGS_DIR" `
+        $userBakeHclFiles = Get-OrderedFileSet -Path "${SCRIPT:DOCKER_BAKE_USER_CONFIGS_DIR}" `
             -FileSuffix "docker-bake" `
             -FileExtension "hcl" `
-            -FileScopes $DOCKER_BAKE_CONFIG_SCOPES `
+            -FileScopes $SCRIPT:DOCKER_BAKE_CONFIG_SCOPES `
             -DisableNumbering;
         # Collect all configuration files, common first and user second.
         $allBakeHclFiles = $commonBakeHclFiles + $userBakeHclFiles;
@@ -615,46 +628,46 @@ function Invoke-DockerCompose
     if (-not $NoComposeFiles)
     {
         # Collect all the common Compose extension files.
-        $commonComposeExtYmlFiles = Get-OrderedFileSet -Path "$DOCKER_COMPOSE_COMMON_CONFIGS_DIR" `
+        $commonComposeExtYmlFiles = Get-OrderedFileSet -Path "${SCRIPT:DOCKER_COMPOSE_COMMON_CONFIGS_DIR}" `
             -FileSuffix "docker-compose-ext" `
             -FileExtension "yml" `
-            -FileScopes $DOCKER_COMPOSE_CONFIG_SCOPES;
+            -FileScopes $SCRIPT:DOCKER_COMPOSE_CONFIG_SCOPES;
         # Collect all the user Compose extension files, don't require them to be ordered.
-        $userComposeExtYmlFiles = Get-OrderedFileSet -Path "$DOCKER_BAKE_USER_CONFIGS_DIR" `
+        $userComposeExtYmlFiles = Get-OrderedFileSet -Path "${SCRIPT:DOCKER_BAKE_USER_CONFIGS_DIR}" `
             -FileSuffix "docker-compose-ext" `
             -FileExtension "yml" `
-            -FileScopes $DOCKER_COMPOSE_CONFIG_SCOPES `
+            -FileScopes $SCRIPT:DOCKER_COMPOSE_CONFIG_SCOPES `
             -DisableNumbering;
         # Collect all the Compose extension files, common first and user second.
         $allComposeExtYmlFiles = $commonComposeExtYmlFiles + $userComposeExtYmlFiles;
         # Get all the Compose extension file contents and join them in a single Compose extension file.
-        $extContents = $allComposeExtYmlFiles | ForEach-Object { Get-Content -Path "$_" -Encoding "utf8" -Raw; }
-        $extContents = $extContents -join [Environment]::NewLine;
+        $extCnts = $allComposeExtYmlFiles | ForEach-Object { Get-Content -Path "$_" -Encoding "utf8" -Raw; }
+        $extCnts = $extCnts -join [Environment]::NewLine;
         # Perform a YAML deep merge (arrays replaced, map keys replaced recursively) of the Compose extension file.
-        $extContents = $extContents | & "$YQ_EXE" eval-all --output-format yaml '. as $item ireduce ({}; . * $item)';
+        $extCnts = $extCnts | & "${SCRIPT:YQ_EXE}" eval-all --output-format yaml '. as $item ireduce ({}; . * $item)';
         # Strip all comments of the Compose extension file from the output to reduce the total size.
-        $extContents = $extContents | & "$YQ_EXE" eval --output-format yaml '... comments=""';
+        $extCnts = $extCnts | & "${SCRIPT:YQ_EXE}" eval --output-format yaml '... comments=""';
         # Save the single Compose extension file contents to file, this file will be prepended to all configurations.
-        $extConcatenatedFile = Join-Path -Path "$PWSH_MANAGE_ENV_TMP_DIR" -ChildPath "$(New-Guid)";
-        Set-Content -Path "$extConcatenatedFile" -Value "$extContents" -Encoding "utf8" -Force;
+        $extConcatenatedFile = Join-Path -Path "${SCRIPT:PWSH_MANAGE_ENV_TMP_DIR}" -ChildPath "$(New-Guid)";
+        Set-Content -Path "$extConcatenatedFile" -Value "$extCnts" -Encoding "utf8" -Force;
 
         # Collect all the common Compose configuration files.
-        $commonComposeYmlFiles = Get-OrderedFileSet -Path "$DOCKER_COMPOSE_COMMON_CONFIGS_DIR" `
+        $commonComposeYmlFiles = Get-OrderedFileSet -Path "${SCRIPT:DOCKER_COMPOSE_COMMON_CONFIGS_DIR}" `
             -FileSuffix "docker-compose" `
             -FileExtension "yml" `
-            -FileScopes $DOCKER_COMPOSE_CONFIG_SCOPES;
+            -FileScopes $SCRIPT:DOCKER_COMPOSE_CONFIG_SCOPES;
         # Collect all the user Compose configuration files, don't require them to be ordered.
-        $userComposeYmlFiles = Get-OrderedFileSet -Path "$DOCKER_BAKE_USER_CONFIGS_DIR" `
+        $userComposeYmlFiles = Get-OrderedFileSet -Path "${SCRIPT:DOCKER_BAKE_USER_CONFIGS_DIR}" `
             -FileSuffix "docker-compose" `
             -FileExtension "yml" `
-            -FileScopes $DOCKER_COMPOSE_CONFIG_SCOPES `
+            -FileScopes $SCRIPT:DOCKER_COMPOSE_CONFIG_SCOPES `
             -DisableNumbering;
         # Collect all the Compose configuration files, common first and user second.
         $allComposeYmlFiles = $commonComposeYmlFiles + $userComposeYmlFiles;
         # Create temporary files for all the compose files, with the extension contents prepended.
         $allComposeYmlProcessed = $allComposeYmlFiles | ForEach-Object {
             # Generate file where to store the contents in the temporary directory.
-            $tmpComposeYmlFile = Join-Path -Path "$PWSH_MANAGE_ENV_TMP_DIR" -ChildPath "$(New-Guid)";
+            $tmpComposeYmlFile = Join-Path -Path "${SCRIPT:PWSH_MANAGE_ENV_TMP_DIR}" -ChildPath "$(New-Guid)";
             # Generate contents with the concatenated extension contents prepended.
             $tmpComposeYmlContents = Get-Content -Path "$extConcatenatedFile" -Encoding "utf8" -Raw + `
                 [Environment]::NewLine + `
@@ -669,7 +682,7 @@ function Invoke-DockerCompose
     }
 
     # Execute Docker Bake forwarding arguments.
-    Invoke-Docker "compose" --progress=plain --project-name "$DOCKER_PROJECT_NAME" @filesParam @Args;
+    Invoke-Docker "compose" --progress=plain --project-name "${SCRIPT:DOCKER_PROJECT_NAME}" @filesParam @Args;
 }
 
 function Sync-VisualStudioCodeSettings
@@ -681,64 +694,64 @@ function Sync-VisualStudioCodeSettings
     param ()
 
     # Collect all the common Visual Studio Code Settings files.
-    $commonSettingsJsoncFiles = Get-OrderedFileSet -Path "$VSCODE_SETTINGS_COMMON_CONFIGS_DIR" `
+    $commonSettingsJsoncFiles = Get-OrderedFileSet -Path "${SCRIPT:VSCODE_SETTINGS_COMMON_CONFIGS_DIR}" `
         -FileSuffix "vscode-settings" `
         -FileExtension "jsonc" `
-        -FileScopes $VSCODE_SETTINGS_CONFIG_SCOPES;
+        -FileScopes $SCRIPT:VSCODE_SETTINGS_CONFIG_SCOPES;
     # Collect all the user Visual Studio Code Settings files, don't require them to be ordered.
-    $userSettingsJsoncFiles = Get-OrderedFileSet -Path "$VSCODE_SETTINGS_USER_CONFIGS_DIR" `
+    $userSettingsJsoncFiles = Get-OrderedFileSet -Path "${SCRIPT:VSCODE_SETTINGS_USER_CONFIGS_DIR}" `
         -FileSuffix "vscode-settings" `
         -FileExtension "jsonc" `
-        -FileScopes $VSCODE_SETTINGS_CONFIG_SCOPES `
+        -FileScopes $SCRIPT:VSCODE_SETTINGS_CONFIG_SCOPES `
         -DisableNumbering;
     # Collect all the Visual Studio Code Settings files, common first and user second.
     $allSettingsJsoncFiles = $commonSettingsJsoncFiles + $userSettingsJsoncFiles;
     # Convert all the files from JSONC to JSON, stripping comments from them.
-    $allSettingsJsonFiles = $allSettingsJsoncFiles | ForEach-Object {
+    $jsonFiles = $allSettingsJsoncFiles | ForEach-Object {
         # Generate file where to store the contents in the temporary directory.
-        $tmpSettingsJsonFile = Join-Path -Path "$PWSH_MANAGE_ENV_TMP_DIR" -ChildPath "$(New-Guid)";
+        $tmpJsonFile = Join-Path -Path "${SCRIPT:PWSH_MANAGE_ENV_TMP_DIR}" -ChildPath "$(New-Guid)";
         # Perform the JSONC to JSON conversion and store to file.
-        $tmpSettingsJsonContents = (Get-Content -Path "$_" -Encoding "utf8" -Raw) | & "$HJSON_EXE" -c;
-        Set-Content -Path "$tmpSettingsJsonFile" -Value "$tmpSettingsJsonContents" -Encoding "utf8" -Force;
+        $tmpJsonContents = (Get-Content -Path "$_" -Encoding "utf8" -Raw) | & "${SCRIPT:HJSON_EXE}" -c;
+        Set-Content -Path "$tmpJsonFile" -Value "$tmpJsonContents" -Encoding "utf8" -Force;
         # Return the path to the temporary file.
-        $tmpSettingsJsonFile;
+        $tmpJsonFile;
     };
     # Perform a JSON deep merge (arrays replaced, map keys replaced recursively) of all the files to a single file.
-    $allSettingsJsonContents = & "$YQ_EXE" eval-all --output-format json '. as $item ireduce ({}; . * $item)' @allSettingsJsonFiles;
+    $cnts = & "${SCRIPT:YQ_EXE}" eval-all --output-format json '. as $item ireduce ({}; . * $item)' @jsonFiles;
     # Perform formatting to pretty printed JSON.
-    $allSettingsJsonContents = $allSettingsJsonContents | & "$HJSON_EXE" -j -preserveKeyOrder -quoteAlways -indentBy "    ";
+    $cnts = $cnts | & "${SCRIPT:HJSON_EXE}" -j -preserveKeyOrder -quoteAlways -indentBy "    ";
     # Store in destination deployment file.
-    Set-Content -Path "$VSCODE_SETTINGS_DEPLOYMENT_FILE" -Value $allSettingsJsonContents -Encoding "utf8" -Force;
+    Set-Content -Path "${SCRIPT:VSCODE_SETTINGS_DEPLOYMENT_FILE}" -Value $cnts -Encoding "utf8" -Force;
 
     # Collect all the common Visual Studio Code Dev Container Settings files.
-    $commonDevContainerSettingsJsoncFiles = Get-OrderedFileSet -Path "$VSCODE_DEV_CONTAINER_SETTINGS_COMMON_CONFIGS_DIR" `
+    $commonSettingsJsoncFiles = Get-OrderedFileSet -Path "${SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_COMMON_CONFIGS_DIR}" `
         -FileSuffix "vscode-dev-container-settings" `
         -FileExtension "jsonc" `
-        -FileScopes $VSCODE_DEV_CONTAINER_SETTINGS_CONFIG_SCOPES;
+        -FileScopes $SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_CONFIG_SCOPES;
     # Collect all the user Visual Studio Code Dev Container Settings files, don't require them to be ordered.
-    $userDevContainerSettingsJsoncFiles = Get-OrderedFileSet -Path "$VSCODE_DEV_CONTAINER_SETTINGS_USER_CONFIGS_DIR" `
+    $userSettingsJsoncFiles = Get-OrderedFileSet -Path "${SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_USER_CONFIGS_DIR}" `
         -FileSuffix "vscode-dev-container-settings" `
         -FileExtension "jsonc" `
-        -FileScopes $VSCODE_DEV_CONTAINER_SETTINGS_CONFIG_SCOPES `
+        -FileScopes $SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_CONFIG_SCOPES `
         -DisableNumbering;
     # Collect all the Visual Studio Code Dev Container Settings files, common first and user second.
-    $allDevContainerSettingsJsoncFiles = $commonDevContainerSettingsJsoncFiles + $userDevContainerSettingsJsoncFiles;
+    $allSettingsJsoncFiles = $commonSettingsJsoncFiles + $userSettingsJsoncFiles;
     # Convert all the files from JSONC to JSON, stripping comments from them.
-    $allDevContainerSettingsJsonFiles = $allDevContainerSettingsJsoncFiles | ForEach-Object {
+    $jsonFiles = $allSettingsJsoncFiles | ForEach-Object {
         # Generate file where to store the contents in the temporary directory.
-        $tmpDevContainerSettingsJsonFile = Join-Path -Path "$PWSH_MANAGE_ENV_TMP_DIR" -ChildPath "$(New-Guid)";
+        $tmpJsonFile = Join-Path -Path "${SCRIPT:PWSH_MANAGE_ENV_TMP_DIR}" -ChildPath "$(New-Guid)";
         # Perform the JSONC to JSON conversion and store to file.
-        $tmpDevContainerSettingsJsonContents = (Get-Content -Path "$_" -Encoding "utf8" -Raw) | & "$HJSON_EXE" -c;
-        Set-Content -Path "$tmpDevContainerSettingsJsonFile" -Value "$tmpDevContainerSettingsJsonContents" -Encoding "utf8" -Force;
+        $tmpJsonContents = (Get-Content -Path "$_" -Encoding "utf8" -Raw) | & "${SCRIPT:HJSON_EXE}" -c;
+        Set-Content -Path "$tmpJsonFile" -Value "$tmpJsonContents" -Encoding "utf8" -Force;
         # Return the path to the temporary file.
-        $tmpDevContainerSettingsJsonFile;
+        $tmpJsonFile;
     };
     # Perform a JSON deep merge (arrays replaced, map keys replaced recursively) of all the files to a single file.
-    $allDevContainerSettingsJsonContents = & "$YQ_EXE" eval-all --output-format json '. as $item ireduce ({}; . * $item)' @allDevContainerSettingsJsonFiles;
+    $cnts = & "${SCRIPT:YQ_EXE}" eval-all --output-format json '. as $item ireduce ({}; . * $item)' @jsonFiles;
     # Perform formatting to pretty printed JSON.
-    $allDevContainerSettingsJsonContents = $allDevContainerSettingsJsonContents | & "$HJSON_EXE" -j -preserveKeyOrder -quoteAlways -indentBy "    ";
+    $cnts = $cnts | & "${SCRIPT:HJSON_EXE}" -j -preserveKeyOrder -quoteAlways -indentBy "    ";
     # Store in destination deployment file.
-    Set-Content -Path "$VSCODE_DEV_CONTAINER_SETTINGS_DEPLOYMENT_FILE" -Value $allDevContainerSettingsJsonContents -Encoding "utf8" -Force;
+    Set-Content -Path "${SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_DEPLOYMENT_FILE}" -Value $cnts -Encoding "utf8" -Force;
 }
 
 # [Functions] ##########################################################################################################
@@ -913,7 +926,7 @@ try
     }
     elseif ($Command -eq "vscode-start")
     {
-        & "$VSCODE_DEV_CONTAINER_EXE" open ".";
+        & "${SCRIPT:VSCODE_DEV_CONTAINER_EXE}" open ".";
     }
     else
     {
