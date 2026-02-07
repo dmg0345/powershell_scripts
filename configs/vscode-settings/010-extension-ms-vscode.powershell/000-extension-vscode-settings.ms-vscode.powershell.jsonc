@@ -7,7 +7,7 @@
     // Enable linter analysis at workspace level, providing a common configuration file.
     // NOTE: Use bundled linter and unique common configuration file, as PowerShell scripts are not critical.
     "powershell.scriptAnalysis.enable": true,
-    "powershell.scriptAnalysis.settingsPath": "./.vscode/001-configs/000-config-pss-script-analyzer.psd1",
+    "powershell.scriptAnalysis.settingsPath": "${workspaceFolder}/.manage-env/local-deps/pwsh-scripts/configs/pss-script-analyzer/pss-script-analyzer.psd1",
     "powershell.analyzeOpenDocumentsOnly": false,
     // Disable run buttons, code folding, prompts and panels.
     "powershell.buttons.showRunButtons": false,

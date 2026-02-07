@@ -5,28 +5,28 @@ schema-version: 'v1'
 profiles:
   default:
     docker:
-      cli: 'docker'
       project-name: "ASDF"
       bake:
         user-configs-dir: ""
-        config-selectors: []
+        config-scopes: []
         image-registry: ""
         image-local-registry: ""
       compose:
         user-configs-dir: ""
-        config-selectors: []
+        config-scopes: []
 
     vscode:
-      cli: 'code'
       settings:
-        user-configs-dir: ""
-        config-selectors: []
-        deployment-file: /path/to/settings.json
+        user-configs-dir: "./.vscode"
+        config-scopes:
+          - "ms-vscode.powershell"
+          - "github.vscode-github-actions"
+          - "phil294.git-log--graph"
+          - "timonwong.shellcheck"
+        deployment-file: "./.vscode/settings.json"
       dev-container-settings:
-        cli: 'devcontainer'
-        user-configs-dir: ""
-        config-selectors: []
-        deployment-file: /path/to/devcontainer.json
+        user-configs-dir: "./.devcontainer"
+        deployment-file: "./.devcontainer/devcontainer.json"
 
     dev-container:
       git:

@@ -358,7 +358,6 @@ function Get-OrderedFileSet
             ForEach-Object { throw "Found sub-directory ordering duplicate numbering at '$Path'."; }
     }
 
-
     # Loop the sorted sub-directories first, and then the main directory last, and fetch relevant files.
     $allSortedFiles = @();
     $escFileSuffix = [regex]::Escape($FileSuffix);

@@ -505,49 +505,49 @@ function Resolve-ManagementEnvironment
 
     # Resolve 'docker' section.
     $pDocker = $SCRIPT:PROFILE_CFG["docker"] ?? @{};
-    $SCRIPT:DOCKER_EXE ??= $pDocker["cli"];
-    $SCRIPT:DOCKER_PROJECT_NAME ??= $pDocker["project-name"];
+    $SCRIPT:DOCKER_EXE = $pDocker["cli"] ?? $SCRIPT:DOCKER_EXE;
+    $SCRIPT:DOCKER_PROJECT_NAME = $pDocker["project-name"] ?? $SCRIPT:DOCKER_PROJECT_NAME;
     ## Resolve 'docker:bake' section.
     $pDockerBake = $pDocker["bake"] ?? @{};
-    $SCRIPT:DOCKER_BAKE_USER_CONFIGS_DIR ??= $pDockerBake["user-configs-dir"];
-    $SCRIPT:DOCKER_BAKE_CONFIG_SCOPES ??= $pDockerBake["config-scopes"];
-    $SCRIPT:DOCKER_BAKE_IMAGE_LOCAL_REGISTRY = $pDockerBake["image-local-registry"];
-    $SCRIPT:DOCKER_BAKE_IMAGE_REGISTRY = $pDockerBake["image-registry"] ?? "${SCRIPT:DOCKER_BAKE_IMAGE_LOCAL_REGISTRY}";
+    $SCRIPT:DOCKER_BAKE_USER_CONFIGS_DIR = $pDockerBake["user-configs-dir"] ?? $SCRIPT:DOCKER_BAKE_USER_CONFIGS_DIR;
+    $SCRIPT:DOCKER_BAKE_CONFIG_SCOPES = $pDockerBake["config-scopes"] ?? $SCRIPT:DOCKER_BAKE_CONFIG_SCOPES;
+    $SCRIPT:DOCKER_BAKE_IMAGE_LOCAL_REGISTRY = $pDockerBake["image-local-registry"] ?? $SCRIPT:DOCKER_BAKE_IMAGE_LOCAL_REGISTRY;
+    $SCRIPT:DOCKER_BAKE_IMAGE_REGISTRY = $pDockerBake["image-registry"] ?? $SCRIPT:DOCKER_BAKE_IMAGE_LOCAL_REGISTRY;
     ## Resolve 'docker:compose' section.
     $pDockerCompose = $pDocker["compose"] ?? @{};
-    $SCRIPT:DOCKER_COMPOSE_USER_CONFIGS_DIR ??= $pDockerCompose["user-configs-dir"];
-    $SCRIPT:DOCKER_COMPOSE_CONFIG_SCOPES ??= $pDockerCompose["config-scopes"];
+    $SCRIPT:DOCKER_COMPOSE_USER_CONFIGS_DIR = $pDockerCompose["user-configs-dir"] ?? $SCRIPT:DOCKER_COMPOSE_USER_CONFIGS_DIR;
+    $SCRIPT:DOCKER_COMPOSE_CONFIG_SCOPES = $pDockerCompose["config-scopes"] ?? $SCRIPT:DOCKER_COMPOSE_CONFIG_SCOPES;
 
     # Resolve 'vscode' section.
     $pVscode = $SCRIPT:PROFILE_CFG["vscode"] ?? @{};
-    $SCRIPT:VSCODE_EXE ??= $pVscode["cli"];
+    $SCRIPT:VSCODE_EXE = $pVscode["cli"] ?? $SCRIPT:VSCODE_EXE;
     ## Resolve 'vscode:settings' section.
     $pVscodeSettings = $pVscode["settings"] ?? @{};
-    $SCRIPT:VSCODE_SETTINGS_USER_CONFIGS_DIR ??= $pVscodeSettings["user-configs-dir"];
-    $SCRIPT:VSCODE_SETTINGS_CONFIG_SCOPES ??= $pVscodeSettings["config-scopes"];
-    $SCRIPT:VSCODE_SETTINGS_DEPLOYMENT_FILE ??= $pVscodeSettings["deployment-file"];
+    $SCRIPT:VSCODE_SETTINGS_USER_CONFIGS_DIR = $pVscodeSettings["user-configs-dir"] ?? $SCRIPT:VSCODE_SETTINGS_USER_CONFIGS_DIR;
+    $SCRIPT:VSCODE_SETTINGS_CONFIG_SCOPES = $pVscodeSettings["config-scopes"] ?? $SCRIPT:VSCODE_SETTINGS_CONFIG_SCOPES;
+    $SCRIPT:VSCODE_SETTINGS_DEPLOYMENT_FILE = $pVscodeSettings["deployment-file"] ?? $SCRIPT:VSCODE_SETTINGS_DEPLOYMENT_FILE;
     ## Resolve 'vscode:dev-container-settings' section.
     $pVsCodeDevContainer = $pVscode["dev-container-settings"] ?? @{};
-    $SCRIPT:VSCODE_DEV_CONTAINER_EXE ??= $pVsCodeDevContainer["cli"];
-    $SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_USER_CONFIGS_DIR ??= $pVsCodeDevContainer["user-configs-dir"];
-    $SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_CONFIG_SCOPES ??= $pVsCodeDevContainer["config-scopes"];
-    $SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_DEPLOYMENT_FILE ??= $pVsCodeDevContainer["deployment-file"];
+    $SCRIPT:VSCODE_DEV_CONTAINER_EXE = $pVsCodeDevContainer["cli"] ?? $SCRIPT:VSCODE_DEV_CONTAINER_EXE;
+    $SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_USER_CONFIGS_DIR = $pVsCodeDevContainer["user-configs-dir"] ?? $SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_USER_CONFIGS_DIR;
+    $SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_CONFIG_SCOPES = $pVsCodeDevContainer["config-scopes"] ?? $SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_CONFIG_SCOPES;
+    $SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_DEPLOYMENT_FILE = $pVsCodeDevContainer["deployment-file"] ?? $SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_DEPLOYMENT_FILE;
 
     # Resolve 'dev-container' section.
     $pDevContainer = $SCRIPT:PROFILE_CFG["dev-container"] ?? @{};
     ## Resolve 'dev-container:git' section.
     $pDevContainerGit = $pDevContainer["git"] ?? @{};
-    $SCRIPT:DEV_CONTAINER_GIT_USERNAME ??= $pDevContainerGit["username"];
-    $SCRIPT:DEV_CONTAINER_GIT_EMAIL ??= $pDevContainerGit["email"];
-    $SCRIPT:DEV_CONTAINER_GIT_SSH_SIGN_KEY_FILE ??= $pDevContainerGit["ssh-sign-key-file"];
+    $SCRIPT:DEV_CONTAINER_GIT_USERNAME = $pDevContainerGit["username"] ?? $SCRIPT:DEV_CONTAINER_GIT_USERNAME;
+    $SCRIPT:DEV_CONTAINER_GIT_EMAIL = $pDevContainerGit["email"] ?? $SCRIPT:DEV_CONTAINER_GIT_EMAIL;
+    $SCRIPT:DEV_CONTAINER_GIT_SSH_SIGN_KEY_FILE = $pDevContainerGit["ssh-sign-key-file"] ?? $SCRIPT:DEV_CONTAINER_GIT_SSH_SIGN_KEY_FILE;
     ## Resolve 'dev-container:github' section.
     $pDevContainerGitHub = $pDevContainer["github"] ?? @{};
-    $SCRIPT:DEV_CONTAINER_GITHUB_USERNAME ??= $pDevContainerGitHub["username"];
-    $SCRIPT:DEV_CONTAINER_GITHUB_SSH_AUTH_KEY_FILE ??= $pDevContainerGitHub["ssh-auth-key-file"];
+    $SCRIPT:DEV_CONTAINER_GITHUB_USERNAME = $pDevContainerGitHub["username"] ?? $SCRIPT:DEV_CONTAINER_GITHUB_USERNAME;
+    $SCRIPT:DEV_CONTAINER_GITHUB_SSH_AUTH_KEY_FILE = $pDevContainerGitHub["ssh-auth-key-file"] ?? $SCRIPT:DEV_CONTAINER_GITHUB_SSH_AUTH_KEY_FILE;
     ## Resolve 'dev-container:vnc-server' section.
     $pDevContainerVncServer = $pDevContainer["vnc-server"] ?? @{};
-    $SCRIPT:DEV_CONTAINER_VNC_SERVER_PASSWORD ??= $pDevContainerVncServer["password"];
-    $SCRIPT:DEV_CONTAINER_VNC_SERVER_GEOMETRY ??= $pDevContainerVncServer["geometry"];
+    $SCRIPT:DEV_CONTAINER_VNC_SERVER_PASSWORD = $pDevContainerVncServer["password"] ?? $SCRIPT:DEV_CONTAINER_VNC_SERVER_PASSWORD;
+    $SCRIPT:DEV_CONTAINER_VNC_SERVER_GEOMETRY = $pDevContainerVncServer["geometry"] ?? $SCRIPT:DEV_CONTAINER_VNC_SERVER_GEOMETRY;
 }
 
 function Invoke-Docker
@@ -713,7 +713,8 @@ function Sync-VisualStudioCodeSettings
         -FileScopes $SCRIPT:VSCODE_SETTINGS_CONFIG_SCOPES `
         -DisableNumbering;
     # Collect all the Visual Studio Code Settings files, common first and user second.
-    $allSettingsJsoncFiles = $commonSettingsJsoncFiles + $userSettingsJsoncFiles;
+    $allSettingsJsoncFiles = ($commonSettingsJsoncFiles + $userSettingsJsoncFiles) | `
+            ForEach-Object { [System.IO.Path]::GetRelativePath("$ROOT_DIR", "$_"); }
     # Convert all the files from JSONC to JSON, stripping comments from them.
     $jsonFiles = $allSettingsJsoncFiles | ForEach-Object {
         Write-Log "Found Visual Studio Code Settings configuration file: '$_'...";
@@ -726,7 +727,7 @@ function Sync-VisualStudioCodeSettings
         $tmpJsonFile;
     };
     # Perform a JSON deep merge (arrays replaced, map keys replaced recursively) of all the files to a single file.
-    $cnts = & "${SCRIPT:YQ_EXE}" eval-all --output-format json '. as $item ireduce ({}; . * $item)' @jsonFiles;
+    $cnts = & "${SCRIPT:YQ_EXE}" eval-all --output-format json '. as $item ireduce ({}; . * $item)' @($jsonFiles);
     # Perform formatting to pretty printed JSON.
     $cnts = $cnts | & "${SCRIPT:HJSON_EXE}" -j -preserveKeyOrder -quoteAlways -indentBy "    ";
     # Store in destination deployment file.
@@ -744,7 +745,8 @@ function Sync-VisualStudioCodeSettings
         -FileScopes $SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_CONFIG_SCOPES `
         -DisableNumbering;
     # Collect all the Visual Studio Code Dev Container Settings files, common first and user second.
-    $allSettingsJsoncFiles = $commonSettingsJsoncFiles + $userSettingsJsoncFiles;
+    $allSettingsJsoncFiles = ($commonSettingsJsoncFiles + $userSettingsJsoncFiles) | `
+            ForEach-Object { [System.IO.Path]::GetRelativePath("$ROOT_DIR", "$_"); }
     # Convert all the files from JSONC to JSON, stripping comments from them.
     $jsonFiles = $allSettingsJsoncFiles | ForEach-Object {
         Write-Log "Found Visual Studio Code Dev Container Settings configuration file: '$_'...";
@@ -757,7 +759,7 @@ function Sync-VisualStudioCodeSettings
         $tmpJsonFile;
     };
     # Perform a JSON deep merge (arrays replaced, map keys replaced recursively) of all the files to a single file.
-    $cnts = & "${SCRIPT:YQ_EXE}" eval-all --output-format json '. as $item ireduce ({}; . * $item)' @jsonFiles;
+    $cnts = & "${SCRIPT:YQ_EXE}" eval-all --output-format json '. as $item ireduce ({}; . * $item)' @($jsonFiles);
     # Perform formatting to pretty printed JSON.
     $cnts = $cnts | & "${SCRIPT:HJSON_EXE}" -j -preserveKeyOrder -quoteAlways -indentBy "    ";
     # Store in destination deployment file.
