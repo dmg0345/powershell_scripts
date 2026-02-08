@@ -607,13 +607,15 @@ function Invoke-DockerBake
         $commonBakeHclFiles = Get-OrderedFileSet -Path "${SCRIPT:DOCKER_BAKE_COMMON_CONFIGS_DIR}" `
             -FileSuffix "docker-bake" `
             -FileExtension "hcl" `
-            -FileScopes ${SCRIPT:DOCKER_BAKE_CONFIG_SCOPES};
+            -FileScopes $SCRIPT:DOCKER_BAKE_CONFIG_SCOPES `
+            -EnableHidden;
         # Collect all the user configuration files, don't require them to be ordered.
         $userBakeHclFiles = Get-OrderedFileSet -Path "${SCRIPT:DOCKER_BAKE_USER_CONFIGS_DIR}" `
             -FileSuffix "docker-bake" `
             -FileExtension "hcl" `
             -FileScopes $SCRIPT:DOCKER_BAKE_CONFIG_SCOPES `
-            -DisableNumbering;
+            -DisableNumbering `
+            -EnableHidden;
         # Collect all configuration files, common first and user second.
         $allBakeHclFiles = $commonBakeHclFiles + $userBakeHclFiles;
         # Print files found for informational purposes.
@@ -652,13 +654,15 @@ function Invoke-DockerCompose
         $commonComposeExtYmlFiles = Get-OrderedFileSet -Path "${SCRIPT:DOCKER_COMPOSE_COMMON_CONFIGS_DIR}" `
             -FileSuffix "docker-compose-ext" `
             -FileExtension "yml" `
-            -FileScopes $SCRIPT:DOCKER_COMPOSE_CONFIG_SCOPES;
+            -FileScopes $SCRIPT:DOCKER_COMPOSE_CONFIG_SCOPES `
+            -EnableHidden;
         # Collect all the user Compose extension files, don't require them to be ordered.
         $userComposeExtYmlFiles = Get-OrderedFileSet -Path "${SCRIPT:DOCKER_BAKE_USER_CONFIGS_DIR}" `
             -FileSuffix "docker-compose-ext" `
             -FileExtension "yml" `
             -FileScopes $SCRIPT:DOCKER_COMPOSE_CONFIG_SCOPES `
-            -DisableNumbering;
+            -DisableNumbering `
+            -EnableHidden;
         # Collect all the Compose extension files, common first and user second.
         $allComposeExtYmlFiles = $commonComposeExtYmlFiles + $userComposeExtYmlFiles;
         # Get all the Compose extension file contents and join them in a single Compose extension file.
@@ -679,13 +683,15 @@ function Invoke-DockerCompose
         $commonComposeYmlFiles = Get-OrderedFileSet -Path "${SCRIPT:DOCKER_COMPOSE_COMMON_CONFIGS_DIR}" `
             -FileSuffix "docker-compose" `
             -FileExtension "yml" `
-            -FileScopes $SCRIPT:DOCKER_COMPOSE_CONFIG_SCOPES;
+            -FileScopes $SCRIPT:DOCKER_COMPOSE_CONFIG_SCOPES `
+            -EnableHidden;
         # Collect all the user Compose configuration files, don't require them to be ordered.
         $userComposeYmlFiles = Get-OrderedFileSet -Path "${SCRIPT:DOCKER_BAKE_USER_CONFIGS_DIR}" `
             -FileSuffix "docker-compose" `
             -FileExtension "yml" `
             -FileScopes $SCRIPT:DOCKER_COMPOSE_CONFIG_SCOPES `
-            -DisableNumbering;
+            -DisableNumbering `
+            -EnableHidden;
         # Collect all the Compose configuration files, common first and user second.
         $allComposeYmlFiles = $commonComposeYmlFiles + $userComposeYmlFiles;
         # Create temporary files for all the compose files, with the extension contents prepended.
@@ -722,13 +728,15 @@ function Sync-VisualStudioCodeSettings
     $commonSettingsJsoncFiles = Get-OrderedFileSet -Path "${SCRIPT:VSCODE_SETTINGS_COMMON_CONFIGS_DIR}" `
         -FileSuffix "vscode-settings" `
         -FileExtension "jsonc" `
-        -FileScopes $SCRIPT:VSCODE_SETTINGS_CONFIG_SCOPES;
+        -FileScopes $SCRIPT:VSCODE_SETTINGS_CONFIG_SCOPES `
+        -EnableHidden;
     # Collect all the user Visual Studio Code Settings files, don't require them to be ordered.
     $userSettingsJsoncFiles = Get-OrderedFileSet -Path "${SCRIPT:VSCODE_SETTINGS_USER_CONFIGS_DIR}" `
         -FileSuffix "vscode-settings" `
         -FileExtension "jsonc" `
         -FileScopes $SCRIPT:VSCODE_SETTINGS_CONFIG_SCOPES `
-        -DisableNumbering;
+        -DisableNumbering `
+        -EnableHidden;
     # Collect all the Visual Studio Code Settings files, common first and user second.
     $allSettingsJsoncFiles = ($commonSettingsJsoncFiles + $userSettingsJsoncFiles) | `
             ForEach-Object { [System.IO.Path]::GetRelativePath("$ROOT_DIR", "$_"); }
@@ -754,13 +762,15 @@ function Sync-VisualStudioCodeSettings
     $commonSettingsJsoncFiles = Get-OrderedFileSet -Path "${SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_COMMON_CONFIGS_DIR}" `
         -FileSuffix "vscode-dev-container-settings" `
         -FileExtension "jsonc" `
-        -FileScopes $SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_CONFIG_SCOPES;
+        -FileScopes $SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_CONFIG_SCOPES `
+        -EnableHidden;
     # Collect all the user Visual Studio Code Dev Container Settings files, don't require them to be ordered.
     $userSettingsJsoncFiles = Get-OrderedFileSet -Path "${SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_USER_CONFIGS_DIR}" `
         -FileSuffix "vscode-dev-container-settings" `
         -FileExtension "jsonc" `
         -FileScopes $SCRIPT:VSCODE_DEV_CONTAINER_SETTINGS_CONFIG_SCOPES `
-        -DisableNumbering;
+        -DisableNumbering `
+        -EnableHidden;
     # Collect all the Visual Studio Code Dev Container Settings files, common first and user second.
     $allSettingsJsoncFiles = ($commonSettingsJsoncFiles + $userSettingsJsoncFiles) | `
             ForEach-Object { [System.IO.Path]::GetRelativePath("$ROOT_DIR", "$_"); }
