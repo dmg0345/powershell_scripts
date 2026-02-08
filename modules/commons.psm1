@@ -181,7 +181,7 @@ function New-SymbolicLink
     if (Test-Path ".gitattributes")
     {
         Write-Log "Adding symbolic link to '.gitattributes' file, review after creating symbolic link...";
-        if ((Get-Item $targetFullPath) -is [System.IO.DirectoryInfo])
+        if (Test-Path -Path "$targetFullPath" -PathType Container)
         {
             $gitSym = "$Path symlink=directory";
         }
@@ -289,7 +289,7 @@ function Get-OrderedFileSet
 
     # If the destination directory does not exist or it is hidden, do not return any files.
     if ((-not (Test-Path -Path "$Path" -PathType Container)) -or
-        (Get-Item -Path "$Path").Name.StartsWith('.'))
+        (Resolve-Path -Path "$Path" | Split-Path -Leaf).StartsWith('.'))
     {
         return @();
     }
@@ -303,7 +303,7 @@ function Get-OrderedFileSet
             Where-Object { $_.Name -match "^$prefix.*" } |
             Where-Object { $EnableHidden -or (-not $_.Name.StartsWith('.')); } |
             Sort-Object -Property "Name" |
-            ForEach-Object { $_.FullName; };
+            ForEach-Object { (Resolve-Path -Path "$($_.FullName)").Path; };
     );
 
     # Find duplicate ordering in subdirectories, if numbering is enabled.
@@ -321,7 +321,8 @@ function Get-OrderedFileSet
     $allSortedFiles = @();
     $escFileSuffix = [regex]::Escape($FileSuffix);
     $escFileExtension = [regex]::Escape($FileExtension);
-    foreach ($scanDir in (@($sortedSubDirs) + @($Path)))
+    $resolvedPath = @((Resolve-Path -Path "$Path").Path);
+    foreach ($scanDir in ($sortedSubDirs + $resolvedPath))
     {
         # Find base files in the destination directory that meet the search criteria.
         $sortedCommonFiles = @(
@@ -415,21 +416,21 @@ function Get-RecurseFileSet
     $allPathFiles = @(
         $Path |
             Where-Object { Test-Path -Path "$_" -PathType Leaf; } |
-            Where-Object { $EnableHidden -or (-not (Get-Item -Path "$_").Name.StartsWith('.')); } |
+            Where-Object { $EnableHidden -or (-not (Resolve-Path -Path "$_" | Split-Path -Leaf).StartsWith('.')); } |
             Where-Object { $_.EndsWith(".$FileExtension"); } |
-            ForEach-Object { (Get-Item -Path "$_").FullName; };
+            ForEach-Object { (Resolve-Path -Path "$_").Path; };
     );
 
     # Get all files in the directory paths provided that satisfy the criteria.
     $allPathFilesFromDirs = @(
         $Path |
             Where-Object { Test-Path -Path "$_" -PathType Container; } |
-            Where-Object { $EnableHidden -or (-not (Get-Item -Path "$_").Name.StartsWith('.')); } |
+            Where-Object { $EnableHidden -or (-not (Resolve-Path -Path "$_" | Split-Path -Leaf).StartsWith('.')); } |
             ForEach-Object {
                 Get-ChildItem -Path "$_" -File -Recurse |
                     Where-Object { $EnableHidden -or (-not $_.Name.StartsWith('.')); } |
                     Where-Object { $_.Name.EndsWith(".$FileExtension"); } |
-                    ForEach-Object { $_.FullName; };
+                    ForEach-Object { (Resolve-Path -Path "$($_.FullName)").Path; };
                 } | ForEach-Object { "$_"; };
     );
 
