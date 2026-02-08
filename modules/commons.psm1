@@ -289,7 +289,7 @@ function Get-OrderedFileSet
 
     # If the destination directory does not exist or it is hidden, do not return any files.
     if ((-not (Test-Path -Path "$Path" -PathType Container)) -or
-        (Resolve-Path -Path "$Path" | Split-Path -Leaf).StartsWith('.'))
+        ((-not $EnableHidden) -and (Resolve-Path -Path "$Path" | Split-Path -Leaf).StartsWith('.')))
     {
         return @();
     }
@@ -348,8 +348,8 @@ function Get-OrderedFileSet
 
         # Concatenate the common files and the sorted selected files for the folder, they will be sorted later.
         $sortedFiles = @();
-        if (-not $DisableBase) { $sortedFiles += @($sortedCommonFiles); };
-        if (-not $DisableScoped) { $sortedFiles += @($sortedSelectedFiles); };
+        if (-not $DisableBase) { $sortedFiles += $sortedCommonFiles; };
+        if (-not $DisableScoped) { $sortedFiles += $sortedSelectedFiles; };
 
         # Check if any relevant files were found.
         if ($sortedFiles.Length -gt 0)
