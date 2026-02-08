@@ -43,13 +43,13 @@ param (
     [Parameter(Mandatory = $false)]
     [Alias("t")]
     [String]
-    $BakeTarget = "default",
+    $BakeTarget = "dev-container",
 
     # Service for 'docker-compose-*' related commands.
     [Parameter(Mandatory = $false)]
     [Alias("s")]
     [String]
-    $ComposeService = "default",
+    $ComposeService = "dev-container",
 
     # The module script identifier for which to redirect the logic.
     [Parameter(Mandatory = $false)]

@@ -12,6 +12,8 @@ profiles:
         image-local-registry: "localuser/localregistry"
       compose:
         user-configs-dir: "./.docker"
+        config-scopes:
+          - "vscode-dev-container"
 
     vscode:
       settings:
