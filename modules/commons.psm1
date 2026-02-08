@@ -289,7 +289,7 @@ function Get-OrderedFileSet
 
     # If the destination directory does not exist or it is hidden, do not return any files.
     if ((-not (Test-Path -Path "$Path" -PathType Container)) -or
-        (Get-Item -Path "$_").Name.StartsWith('.'))
+        (Get-Item -Path "$Path").Name.StartsWith('.'))
     {
         return @();
     }
