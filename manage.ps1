@@ -180,7 +180,7 @@ function Test-Pwsh
             $cMinor = & "$PwshPath" -NoLogo -Command '$PSVersionTable.PSVersion.Minor' 2>$null;
             # Perform version check comparison against minimum major and minor version numbers.
             if (($cMajor -gt $PWSH_VERSION_MAJOR_MIN) -or
-                (($cMajor -eq $PWSH_VERSION_MAJOR_MIN) && ($cMinor -ge $PWSH_VERSION_MINOR_MIN)))
+                (($cMajor -eq $PWSH_VERSION_MAJOR_MIN) -and ($cMinor -ge $PWSH_VERSION_MINOR_MIN)))
             {
                 return $true;
             }

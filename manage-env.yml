@@ -1,19 +1,17 @@
 version: 'feature/bootstrap'
 
-schema-version: 'v1'
+schema-version: 1
 
 profiles:
   default:
     docker:
-      project-name: "ASDF"
+      project-name: "powershell-scripts"
       bake:
-        user-configs-dir: ""
-        config-scopes: []
-        image-registry: ""
-        image-local-registry: ""
+        user-configs-dir: "./.devcontainer"
+        image-registry: "${BAKE_IMAGE_REGISTRY}"
+        image-local-registry: "localuser/localregistry"
       compose:
-        user-configs-dir: ""
-        config-scopes: []
+        user-configs-dir: "./.devcontainer"
 
     vscode:
       settings:
@@ -30,12 +28,12 @@ profiles:
 
     dev-container:
       git:
-        username: strenv(GIT_USERNAME)
-        email: strenv(GIT_EMAIL)
-        ssh-sign-key-file: strenv(GIT_SSH_SIGN_KEY_FILE)
+        username: "${GIT_USERNAME}"
+        email: "${GIT_EMAIL}"
+        ssh-sign-key-file: "${GIT_SSH_SIGN_KEY_FILE}"
       github:
-        username: strenv(GITHUB_USERNAME)
+        username: "${GITHUB_USERNAME}"
         ssh-auth-key-file: strenv(GITHUB_SSH_AUTH_KEY_FILE)
       vnc-server:
-        password: '012345'
-        geometry: '1920x1080'
+        password: "012345"
+        geometry: "1920x1080"

@@ -136,6 +136,8 @@ $HJSON_VERSION = "4.6.0";
 # Path to the 'hjson' CLI utility local dependency lock file.
 $HJSON_LOCK_FILE = Join-Path -Path "$HJSON_DIR" -ChildPath ".lock";
 
+# The resolved schema version from the management environment configuration YAML file, resolved at runtime.
+$SCHEMA_VERSION = 1;
 # The resolved profile configuration from the management environment configuration YAML file, resolved at runtime.
 $PROFILE_CFG = $null;
 
@@ -498,10 +500,13 @@ function Resolve-ManagementEnvironment
         $ProfileIdentifier
     )
 
-    # Parse and resolve the management YAML file to a hash table.
+    # Parse and resolve the management YAML file to a hash table, resolve 'envsubst' kind of environment variables.
     $manageEnv = Get-Content -Path "${SCRIPT:PWSH_MANAGE_ENV_LOCK_FILE}" -Encoding "utf8" -Raw |
-        & "${SCRIPT:YQ_EXE}" --output-format json |
+        & "${SCRIPT:YQ_EXE}" '(.. | select(tag == "!!str")) |= envsubst' --output-format json |
         ConvertFrom-Json -AsHashtable;
+
+    # Fetch schema version from the management environment.
+    $SCRIPT:SCHEMA_VERSION = $manageEnv["schema-version"] ?? $SCRIPT:SCHEMA_VERSION;
 
     # Ensure the profiles top level key exists, and also the profile identifier within it.
     if ((-not $manageEnv.ContainsKey("profiles")) -or
@@ -587,7 +592,7 @@ function Invoke-DockerBake
     .DESCRIPTION
         Invokes 'docker-bake' with specified arguments.
 
-    .PARAMETER NoFiles
+    .PARAMETER NoBakeFiles
         If specified, the Docker Bake configuration files are not resolved nor added to the command.
         Docker Bake configuration Files are added by default.
     #>
@@ -617,7 +622,10 @@ function Invoke-DockerBake
             -DisableNumbering `
             -EnableHidden;
         # Collect all configuration files, common first and user second.
-        $allBakeHclFiles = $commonBakeHclFiles + $userBakeHclFiles;
+        $allBakeHclFiles = @(
+            ($commonBakeHclFiles + $userBakeHclFiles) |
+                ForEach-Object { [System.IO.Path]::GetRelativePath("$ROOT_DIR", "$_"); };
+        );
         # Print files found for informational purposes.
         $allBakeHclFiles | ForEach-Object { Write-Log "Found Docker Bake configuration file: '$_'..."; };
         # Build parameters for Docker Bake.
@@ -634,7 +642,7 @@ function Invoke-DockerCompose
     .DESCRIPTION
         Invokes 'docker-compose' with specified arguments.
 
-    .PARAMETER NoFiles
+    .PARAMETER NoComposeFiles
         If specified, the Docker Compose configuration files are not resolved nor added to the command.
         Docker Compose configuration Files are added by default.
     #>
@@ -657,25 +665,31 @@ function Invoke-DockerCompose
             -FileScopes $SCRIPT:DOCKER_COMPOSE_CONFIG_SCOPES `
             -EnableHidden;
         # Collect all the user Compose extension files, don't require them to be ordered.
-        $userComposeExtYmlFiles = Get-OrderedFileSet -Path "${SCRIPT:DOCKER_BAKE_USER_CONFIGS_DIR}" `
+        $userComposeExtYmlFiles = Get-OrderedFileSet -Path "${SCRIPT:DOCKER_COMPOSE_USER_CONFIGS_DIR}" `
             -FileSuffix "docker-compose-ext" `
             -FileExtension "yml" `
             -FileScopes $SCRIPT:DOCKER_COMPOSE_CONFIG_SCOPES `
             -DisableNumbering `
             -EnableHidden;
-        # Collect all the Compose extension files, common first and user second.
-        $allComposeExtYmlFiles = $commonComposeExtYmlFiles + $userComposeExtYmlFiles;
+        # Collect all the Compose extension files, common first and user second, as relative paths.
+        $allComposeExtYmlFiles = @(
+            ($commonComposeExtYmlFiles + $userComposeExtYmlFiles) |
+                ForEach-Object { [System.IO.Path]::GetRelativePath("$ROOT_DIR", "$_"); };
+        );
         # Get all the Compose extension file contents and join them in a single Compose extension file.
-        $extCnts = $allComposeExtYmlFiles | ForEach-Object {
-            Write-Log "Found Docker Compose Extension file: '$_'...";
-            Get-Content -Path "$_" -Encoding "utf8" -Raw;
-        }
+        $extCnts = @(
+            $allComposeExtYmlFiles | ForEach-Object {
+                Write-Log "Found Docker Compose Extension file: '$_'...";
+                Get-Content -Path "$_" -Encoding "utf8" -Raw;
+            };
+        );
         $extCnts = $extCnts -join [Environment]::NewLine;
         # Perform a YAML deep merge (arrays replaced, map keys replaced recursively) of the Compose extension file.
         $extCnts = $extCnts | & "${SCRIPT:YQ_EXE}" eval-all --output-format yaml '. as $item ireduce ({}; . * $item)';
         # Strip all comments of the Compose extension file from the output to reduce the total size.
         $extCnts = $extCnts | & "${SCRIPT:YQ_EXE}" eval --output-format yaml '... comments=""';
         # Save the single Compose extension file contents to file, this file will be prepended to all configurations.
+        $extCnts = $extCnts -join [Environment]::NewLine;
         $extConcatenatedFile = Join-Path -Path "${SCRIPT:PWSH_MANAGE_ENV_TMP_DIR}" -ChildPath "$(New-Guid)";
         Set-Content -Path "$extConcatenatedFile" -Value "$extCnts" -Encoding "utf8" -Force;
 
@@ -686,28 +700,32 @@ function Invoke-DockerCompose
             -FileScopes $SCRIPT:DOCKER_COMPOSE_CONFIG_SCOPES `
             -EnableHidden;
         # Collect all the user Compose configuration files, don't require them to be ordered.
-        $userComposeYmlFiles = Get-OrderedFileSet -Path "${SCRIPT:DOCKER_BAKE_USER_CONFIGS_DIR}" `
+        $userComposeYmlFiles = Get-OrderedFileSet -Path "${SCRIPT:DOCKER_COMPOSE_USER_CONFIGS_DIR}" `
             -FileSuffix "docker-compose" `
             -FileExtension "yml" `
             -FileScopes $SCRIPT:DOCKER_COMPOSE_CONFIG_SCOPES `
             -DisableNumbering `
             -EnableHidden;
         # Collect all the Compose configuration files, common first and user second.
-        $allComposeYmlFiles = $commonComposeYmlFiles + $userComposeYmlFiles;
+        $allComposeYmlFiles = @(
+            ($commonComposeYmlFiles + $userComposeYmlFiles) |
+                ForEach-Object { [System.IO.Path]::GetRelativePath("$ROOT_DIR", "$_"); };
+        );
         # Create temporary files for all the compose files, with the extension contents prepended.
-        $allComposeYmlProcessed = $allComposeYmlFiles | ForEach-Object {
-            Write-Log "Found Docker Compose configuration file: '$_'...";
-            # Generate file where to store the contents in the temporary directory.
-            $tmpComposeYmlFile = Join-Path -Path "${SCRIPT:PWSH_MANAGE_ENV_TMP_DIR}" -ChildPath "$(New-Guid)";
-            # Generate contents with the concatenated extension contents prepended.
-            $tmpComposeYmlContents = Get-Content -Path "$extConcatenatedFile" -Encoding "utf8" -Raw + `
-                [Environment]::NewLine + `
-                Get-Content -Path "$_" -Encoding "utf8" -Raw;
-            Set-Content -Path "$tmpComposeYmlFile" -Value "$tmpComposeYmlContents" -Encoding "utf8" -Force;
-            # Return the path to the file created to pass it to Docker Compose.
-            $tmpComposeYmlFile;
-        };
-
+        $allComposeYmlProcessed = @(
+            $allComposeYmlFiles | ForEach-Object {
+                Write-Log "Found Docker Compose configuration file: '$_'...";
+                # Generate file where to store the contents in the temporary directory.
+                $tmpComposeYmlFile = Join-Path -Path "${SCRIPT:PWSH_MANAGE_ENV_TMP_DIR}" -ChildPath "$(New-Guid)";
+                # Generate contents with the concatenated extension contents prepended.
+                $tmpComposeYmlContents = Get-Content -Path "$extConcatenatedFile" -Encoding "utf8" -Raw
+                $tmpComposeYmlContents += [Environment]::NewLine;
+                $tmpComposeYmlContents += Get-Content -Path "$_" -Encoding "utf8" -Raw;
+                Set-Content -Path "$tmpComposeYmlFile" -Value "$tmpComposeYmlContents" -Encoding "utf8" -Force;
+                # Return the path to the file created to pass it to Docker Compose.
+                $tmpComposeYmlFile;
+            };
+        );
         # Build parameters for Docker Compose.
         $filesParam = ($allComposeYmlProcessed | ForEach-Object { "--file"; "$_"; });
     }
@@ -865,7 +883,7 @@ try
         Invoke-Docker --version;
 
         Write-Log "Printing Docker Compose version...";
-        Invoke-DockerCompose -NoFiles version;
+        Invoke-DockerCompose -NoComposeFiles version;
 
         Write-Log "Printing containers...";
         Invoke-Docker container list --all --size;
@@ -880,7 +898,7 @@ try
         Invoke-Docker network list --no-trunc;
 
         Write-Log "Printing compose projects...";
-        Invoke-DockerCompose -NoFiles ls --all;
+        Invoke-DockerCompose -NoComposeFiles ls --all;
     }
     elseif ($Command -eq "docker-clean")
     {
