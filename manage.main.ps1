@@ -738,21 +738,25 @@ function Sync-VisualStudioCodeSettings
         -DisableNumbering `
         -EnableHidden;
     # Collect all the Visual Studio Code Settings files, common first and user second.
-    $allSettingsJsoncFiles = ($commonSettingsJsoncFiles + $userSettingsJsoncFiles) | `
-            ForEach-Object { [System.IO.Path]::GetRelativePath("$ROOT_DIR", "$_"); }
+    $allSettingsJsoncFiles = @(
+        ($commonSettingsJsoncFiles + $userSettingsJsoncFiles) |
+            ForEach-Object { [System.IO.Path]::GetRelativePath("$ROOT_DIR", "$_"); };
+    );
     # Convert all the files from JSONC to JSON, stripping comments from them.
-    $jsonFiles = $allSettingsJsoncFiles | ForEach-Object {
-        Write-Log "Found Visual Studio Code Settings configuration file: '$_'...";
-        # Generate file where to store the contents in the temporary directory.
-        $tmpJsonFile = Join-Path -Path "${SCRIPT:PWSH_MANAGE_ENV_TMP_DIR}" -ChildPath "$(New-Guid)";
-        # Perform the JSONC to JSON conversion and store to file.
-        $tmpJsonContents = (Get-Content -Path "$_" -Encoding "utf8" -Raw) | & "${SCRIPT:HJSON_EXE}" -c;
-        Set-Content -Path "$tmpJsonFile" -Value "$tmpJsonContents" -Encoding "utf8" -Force;
-        # Return the path to the temporary file.
-        $tmpJsonFile;
-    };
+    $jsonFiles = @(
+        $allSettingsJsoncFiles | ForEach-Object {
+            Write-Log "Found Visual Studio Code Settings configuration file: '$_'...";
+            # Generate file where to store the contents in the temporary directory.
+            $tmpJsonFile = Join-Path -Path "${SCRIPT:PWSH_MANAGE_ENV_TMP_DIR}" -ChildPath "$(New-Guid)";
+            # Perform the JSONC to JSON conversion and store to file.
+            $tmpJsonContents = (Get-Content -Path "$_" -Encoding "utf8" -Raw) | & "${SCRIPT:HJSON_EXE}" -c;
+            Set-Content -Path "$tmpJsonFile" -Value "$tmpJsonContents" -Encoding "utf8" -Force;
+            # Return the path to the temporary file.
+            $tmpJsonFile;
+        };
+    );
     # Perform a JSON deep merge (arrays replaced, map keys replaced recursively) of all the files to a single file.
-    $cnts = & "${SCRIPT:YQ_EXE}" eval-all --output-format json '. as $item ireduce ({}; . * $item)' @($jsonFiles);
+    $cnts = & "${SCRIPT:YQ_EXE}" eval-all --output-format json '. as $item ireduce ({}; . * $item)' @jsonFiles;
     # Perform formatting to pretty printed JSON.
     $cnts = $cnts | & "${SCRIPT:HJSON_EXE}" -j -preserveKeyOrder -quoteAlways -indentBy "    ";
     # Store in destination deployment file.
@@ -772,21 +776,25 @@ function Sync-VisualStudioCodeSettings
         -DisableNumbering `
         -EnableHidden;
     # Collect all the Visual Studio Code Dev Container Settings files, common first and user second.
-    $allSettingsJsoncFiles = ($commonSettingsJsoncFiles + $userSettingsJsoncFiles) | `
+    $allSettingsJsoncFiles = @(
+        ($commonSettingsJsoncFiles + $userSettingsJsoncFiles) |
             ForEach-Object { [System.IO.Path]::GetRelativePath("$ROOT_DIR", "$_"); }
+    );
     # Convert all the files from JSONC to JSON, stripping comments from them.
-    $jsonFiles = $allSettingsJsoncFiles | ForEach-Object {
-        Write-Log "Found Visual Studio Code Dev Container Settings configuration file: '$_'...";
-        # Generate file where to store the contents in the temporary directory.
-        $tmpJsonFile = Join-Path -Path "${SCRIPT:PWSH_MANAGE_ENV_TMP_DIR}" -ChildPath "$(New-Guid)";
-        # Perform the JSONC to JSON conversion and store to file.
-        $tmpJsonContents = (Get-Content -Path "$_" -Encoding "utf8" -Raw) | & "${SCRIPT:HJSON_EXE}" -c;
-        Set-Content -Path "$tmpJsonFile" -Value "$tmpJsonContents" -Encoding "utf8" -Force;
-        # Return the path to the temporary file.
-        $tmpJsonFile;
-    };
+    $jsonFiles = @(
+        $allSettingsJsoncFiles | ForEach-Object {
+            Write-Log "Found Visual Studio Code Dev Container Settings configuration file: '$_'...";
+            # Generate file where to store the contents in the temporary directory.
+            $tmpJsonFile = Join-Path -Path "${SCRIPT:PWSH_MANAGE_ENV_TMP_DIR}" -ChildPath "$(New-Guid)";
+            # Perform the JSONC to JSON conversion and store to file.
+            $tmpJsonContents = (Get-Content -Path "$_" -Encoding "utf8" -Raw) | & "${SCRIPT:HJSON_EXE}" -c;
+            Set-Content -Path "$tmpJsonFile" -Value "$tmpJsonContents" -Encoding "utf8" -Force;
+            # Return the path to the temporary file.
+            $tmpJsonFile;
+        };
+    );
     # Perform a JSON deep merge (arrays replaced, map keys replaced recursively) of all the files to a single file.
-    $cnts = & "${SCRIPT:YQ_EXE}" eval-all --output-format json '. as $item ireduce ({}; . * $item)' @($jsonFiles);
+    $cnts = & "${SCRIPT:YQ_EXE}" eval-all --output-format json '. as $item ireduce ({}; . * $item)' @jsonFiles;
     # Perform formatting to pretty printed JSON.
     $cnts = $cnts | & "${SCRIPT:HJSON_EXE}" -j -preserveKeyOrder -quoteAlways -indentBy "    ";
     # Store in destination deployment file.
