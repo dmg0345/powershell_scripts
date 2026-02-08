@@ -8,12 +8,14 @@ profiles:
       project-name: "powershell-scripts"
       bake:
         user-configs-dir: "./.docker"
+        config-scopes:
+          - "vscode"
         image-registry: "${BAKE_IMAGE_REGISTRY}"
         image-local-registry: "localuser/localregistry"
       compose:
         user-configs-dir: "./.docker"
         config-scopes:
-          - "vscode-dev-container"
+          - "vscode"
 
     vscode:
       settings:

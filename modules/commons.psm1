@@ -260,6 +260,8 @@ function Get-OrderedFileSet
             -FileExtension "jsonc" `
             -FileScopes @("dev", "prod");
     #>
+    [CmdletBinding(PositionalBinding=$false)]
+    [OutputType([String[]])]
     param(
         [Parameter(Mandatory = $true)]
         [String]
@@ -291,7 +293,7 @@ function Get-OrderedFileSet
     if ((-not (Test-Path -Path "$Path" -PathType Container)) -or
         ((-not $EnableHidden) -and (Resolve-Path -Path "$Path" | Split-Path -Leaf).StartsWith('.')))
     {
-        return @();
+        return ,@();
     }
 
     # Determine prefix based on enforcing numbering or not.
@@ -300,21 +302,21 @@ function Get-OrderedFileSet
     # Find sub-directories in the destination directory that meet the search criteria, and sort them.
     $sortedSubDirs = @(
         Get-ChildItem -Path "$Path" -Directory -Depth 0 |
-            Where-Object { $_.Name -match "^$prefix.*" } |
-            Where-Object { $EnableHidden -or (-not $_.Name.StartsWith('.')); } |
-            Sort-Object -Property "Name" |
-            ForEach-Object { (Resolve-Path -Path "$($_.FullName)").Path; };
+        Where-Object { $_.Name -match "^$prefix.*" } |
+        Where-Object { $EnableHidden -or (-not $_.Name.StartsWith('.')); } |
+        Sort-Object -Property "Name" |
+        ForEach-Object { (Resolve-Path -Path "$($_.FullName)").Path; };
     );
 
     # Find duplicate ordering in subdirectories, if numbering is enabled.
     if (-not $DisableNumbering)
     {
         $sortedSubDirs |
-            Split-Path -Leaf |
-            ForEach-Object { $_.Substring(0, 3); } |
-            Group-Object |
-            Where-Object { $_.Count -gt 1; } |
-            ForEach-Object { throw "Found sub-directory ordering duplicate numbering at '$Path'."; }
+        Split-Path -Leaf |
+        ForEach-Object { $_.Substring(0, 3); } |
+        Group-Object |
+        Where-Object { $_.Count -gt 1; } |
+        ForEach-Object { throw "Found sub-directory ordering duplicate numbering at '$Path'."; }
     }
 
     # Loop the sorted sub-directories first, and then the main directory last, and fetch relevant files.
@@ -327,23 +329,23 @@ function Get-OrderedFileSet
         # Find base files in the destination directory that meet the search criteria.
         $sortedCommonFiles = @(
             Get-ChildItem -Path "$scanDir" -File -Depth 0 |
-                Where-Object { $_.Name -match "^$prefix.*-$escFileSuffix\.$escFileExtension`$"; } |
-                Where-Object { $EnableHidden -or (-not $_.Name.StartsWith('.')); } |
-                ForEach-Object { $_.Name; };
+            Where-Object { $_.Name -match "^$prefix.*-$escFileSuffix\.$escFileExtension`$"; } |
+            Where-Object { $EnableHidden -or (-not $_.Name.StartsWith('.')); } |
+            ForEach-Object { $_.Name; };
         );
 
         # Find scoped files in the destination directory that meet the search criteria.
         $sortedSelectedFiles = @(
             $FileScopes |
-                ForEach-Object { $_.Trim(); } |
-                Where-Object { $_.Length -gt 0; } |
-                ForEach-Object {
-                    $escFileSelector = [regex]::Escape($_);
-                    Get-ChildItem -Path "$scanDir" -File -Depth 0 |
-                        Where-Object { $_.Name -match "^$prefix.*-$escFileSuffix\.$escFileSelector\.$escFileExtension`$"; } |
-                        Where-Object { $EnableHidden -or (-not $_.Name.StartsWith('.')); } |
-                        ForEach-Object { $_.Name; }
-                    } | ForEach-Object { $_; };
+            ForEach-Object { $_.Trim(); } |
+            Where-Object { $_.Length -gt 0; } |
+            ForEach-Object {
+                $escFileSelector = [regex]::Escape($_);
+                Get-ChildItem -Path "$scanDir" -File -Depth 0 |
+                Where-Object { $_.Name -match "^$prefix.*-$escFileSuffix\.$escFileSelector\.$escFileExtension`$"; } |
+                Where-Object { $EnableHidden -or (-not $_.Name.StartsWith('.')); } |
+                ForEach-Object { $_.Name; } 
+            };
         );
 
         # Concatenate the common files and the sorted selected files for the folder, they will be sorted later.
@@ -358,25 +360,26 @@ function Get-OrderedFileSet
             if (-not $DisableNumbering)
             {
                 $sortedFiles |
-                    ForEach-Object { $_.Substring(0, 3); } |
-                    Group-Object |
-                    Where-Object { $_.Count -gt 1; } |
-                    ForEach-Object { throw "Found file ordering duplicate numbering at '$scanDir'."; }
+                ForEach-Object { $_.Substring(0, 3); } |
+                Group-Object |
+                Where-Object { $_.Count -gt 1; } |
+                ForEach-Object { throw "Found file ordering duplicate numbering at '$scanDir'."; }
             }
 
             # Sort found files.
             $sortedFiles = @(
                 $sortedFiles |
-                    Sort-Object |
-                    ForEach-Object { Join-Path -Path "$scanDir" -ChildPath "$_"; };
+                Sort-Object |
+                ForEach-Object { Join-Path -Path "$scanDir" -ChildPath "$_"; };
             );
 
             # Add to all files.
             $allSortedFiles += $sortedFiles;
         }
     };
-
-    return $allSortedFiles;
+    
+    # Always emit an array of strings, do not enumerate.
+    return ,$allSortedFiles;
 }
 
 function Get-RecurseFileSet
@@ -400,6 +403,8 @@ function Get-RecurseFileSet
     .EXAMPLE
         Get-RecurseFileSet -Path @("./folder", "./file.txt", "./folder2/file.txt") -FileExtension "txt";
     #>
+    [CmdletBinding(PositionalBinding=$false)]
+    [OutputType([String[]])]
     param(
         [Parameter(Mandatory = $true)]
         [String[]]
@@ -415,26 +420,30 @@ function Get-RecurseFileSet
     # Get all files in the file paths provided that satisfy the criteria.
     $allPathFiles = @(
         $Path |
-            Where-Object { Test-Path -Path "$_" -PathType Leaf; } |
-            Where-Object { $EnableHidden -or (-not (Resolve-Path -Path "$_" | Split-Path -Leaf).StartsWith('.')); } |
-            Where-Object { $_.EndsWith(".$FileExtension"); } |
-            ForEach-Object { (Resolve-Path -Path "$_").Path; };
+        Where-Object { Test-Path -Path "$_" -PathType Leaf; } |
+        Where-Object { $EnableHidden -or (-not (Resolve-Path -Path "$_" | Split-Path -Leaf).StartsWith('.')); } |
+        Where-Object { $_.EndsWith(".$FileExtension"); } |
+        ForEach-Object { (Resolve-Path -Path "$_").Path; };
     );
 
     # Get all files in the directory paths provided that satisfy the criteria.
     $allPathFilesFromDirs = @(
         $Path |
-            Where-Object { Test-Path -Path "$_" -PathType Container; } |
-            Where-Object { $EnableHidden -or (-not (Resolve-Path -Path "$_" | Split-Path -Leaf).StartsWith('.')); } |
-            ForEach-Object {
-                Get-ChildItem -Path "$_" -File -Recurse |
-                    Where-Object { $EnableHidden -or (-not $_.Name.StartsWith('.')); } |
-                    Where-Object { $_.Name.EndsWith(".$FileExtension"); } |
-                    ForEach-Object { (Resolve-Path -Path "$($_.FullName)").Path; };
-                } | ForEach-Object { "$_"; };
+        Where-Object { Test-Path -Path "$_" -PathType Container; } |
+        Where-Object { $EnableHidden -or (-not (Resolve-Path -Path "$_" | Split-Path -Leaf).StartsWith('.')); } |
+        ForEach-Object {
+            Get-ChildItem -Path "$_" -File -Recurse |
+            Where-Object { $EnableHidden -or (-not $_.Name.StartsWith('.')); } |
+            Where-Object { $_.Name.EndsWith(".$FileExtension"); } |
+            ForEach-Object { (Resolve-Path -Path "$($_.FullName)").Path; };
+        };
     );
+    
+    # Collect all files.
+    $allFiles = $allPathFiles + $allPathFilesFromDirs;
 
-    return $allPathFiles + $allPathFilesFromDirs;
+    # Always emit an array of strings, do not enumerate.
+    return ,$allFiles;
 }
 
 function New-CompilationDatabase

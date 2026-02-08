@@ -28,16 +28,16 @@ variable "BAKE_IMAGE_REGISTRY" {
 target "target-base" {
     platforms = ["linux/amd64"] # Suitable for MacOS, Windows (WSL) and Linux Desktops.
     network = "default" # Use default network, allow access to Internet for packages.
-    context = "" # Provide no default context by default.
+    context = null # Disable default context, do not have any contexts by default.
     # Provide variables as ARG for Dockerfiles, to use them, redeclare ARG <name> in the Dockerfile.
     args = {
         BAKE_PROJECT_NAME = "${BAKE_PROJECT_NAME}"
         BAKE_IMAGE_LOCAL_REGISTRY = "${BAKE_IMAGE_LOCAL_REGISTRY}"
         BAKE_IMAGE_REGISTRY = "${BAKE_IMAGE_REGISTRY}"
     }
-    # Provide Dev Container directory of the host as a named context for convenience.
+    # Provide '.docker' directory of the host as a named context for convenience, only used if referenced.
     contexts = {
-        host-dev-container-dir = "./.devcontainer"
+        host-docker-dir = "./.docker"
     }
     call = "build" # Make build the default action.
     no-cache = false # Use the cache by default.
