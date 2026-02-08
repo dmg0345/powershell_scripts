@@ -197,57 +197,6 @@ function New-SymbolicLink
     Write-Log "Created symbolic link from '$((Resolve-Path $Path).Path)' to '$targetFullPath'." "Success";
 }
 
-function New-CopyItem
-{
-    <#
-    .DESCRIPTION
-        Copies a file or directory from a source path to a destination path, recreating the folder structure if it
-        does not exist and replacing existing files or folders if they already exist.
-
-    .PARAMETER Source
-        The file or directory to copy.
-
-    .PARAMETER Destination
-        The file or directory that will be created.
-
-    .EXAMPLE
-        New-CopyItem -Source "path/to/source" -Destination "path/to/destination";
-    #>
-    param(
-        [Parameter(Mandatory = $true)]
-        [String]
-        $Source,
-        [Parameter(Mandatory = $true)]
-        [String]
-        $Destination
-    )
-
-    Write-Log "Copying item from '$Source' to '$Destination'...";
-
-    # Ensure if the source path exists.
-    if (-not (Test-Path "$Source"))
-    {
-        throw "Path '$Source' does not exist.";
-    }
-
-    # Check if the parent directory does not exist, in which case create it.
-    $parentPath = Split-Path "$Destination" -Parent;
-    if (-not (Test-Path "$parentPath"))
-    {
-        New-Item -Path "$parentPath" -ItemType "Directory" -Force | Out-Null;
-    }
-    # Check if destination path exists, in which case remove it.
-    elseif (Test-Path "$Destination")
-    {
-        Remove-Item -Path "$Destination" -Force -Recurse;
-    }
-
-    # Copy item, if a directory, copy recursively.
-    Copy-Item -Path "$Source" -Destination "$Destination" -Force -Recurse;
-
-    Write-Log "Copied item from '$((Resolve-Path $Source).Path)' to '$((Resolve-Path $Destination).Path)'..." "Success";
-}
-
 function New-TemporaryFolder
 {
     <#
@@ -299,11 +248,14 @@ function Get-OrderedFileSet
     .PARAMETER DisableScoped
         Excludes the paths to the scoped files from the results.
 
+    .PARAMETER EnableHidden
+        Includes hidden files and folders in the results. Files and folders that start with a '.' are considered hidden.
+
     .OUTPUTS
         An array with sorted paths to the relevant files found.
 
     .EXAMPLE
-        New-SortedFileSet -Path "./folder" `
+        Get-OrderedFileSet -Path "./folder" `
             -FileSuffix "vscode-settings" `
             -FileExtension "jsonc" `
             -FileScopes @("dev", "prod");
@@ -329,11 +281,15 @@ function Get-OrderedFileSet
         $DisableBase = $false,
         [Parameter(Mandatory = $false)]
         [switch]
-        $DisableScoped = $false
+        $DisableScoped = $false,
+        [Parameter(Mandatory = $false)]
+        [switch]
+        $EnableHidden = $false
     )
 
-    # If the destination directory does not exist, do not return any files.
-    if (-not (Test-Path -Path "$Path" -PathType Container))
+    # If the destination directory does not exist or it is hidden, do not return any files.
+    if ((-not (Test-Path -Path "$Path" -PathType Container)) -or
+        (Get-Item -Path "$_").Name.StartsWith('.'))
     {
         return @();
     }
@@ -342,10 +298,13 @@ function Get-OrderedFileSet
     $prefix = if (-not $DisableNumbering) { "[0-9]{3}-"; } else { ""; };
 
     # Find sub-directories in the destination directory that meet the search criteria, and sort them.
-    $sortedSubDirs = Get-ChildItem -Path "$Path" -Directory -Depth 0 |
-        Where-Object { $_.Name -match "^$prefix.*" } |
-        Sort-Object -Property "Name" |
-        ForEach-Object { $_.FullName; };
+    $sortedSubDirs = @(
+        Get-ChildItem -Path "$Path" -Directory -Depth 0 |
+            Where-Object { $_.Name -match "^$prefix.*" } |
+            Where-Object { $EnableHidden -or (-not $_.Name.StartsWith('.')); } |
+            Sort-Object -Property "Name" |
+            ForEach-Object { $_.FullName; };
+    );
 
     # Find duplicate ordering in subdirectories, if numbering is enabled.
     if (-not $DisableNumbering)
@@ -365,20 +324,26 @@ function Get-OrderedFileSet
     foreach ($scanDir in (@($sortedSubDirs) + @($Path)))
     {
         # Find base files in the destination directory that meet the search criteria.
-        $sortedCommonFiles = Get-ChildItem -Path "$scanDir" -File -Depth 0 |
-            Where-Object { $_.Name -match "^$prefix.*-$escFileSuffix\.$escFileExtension`$"; } |
-            ForEach-Object { $_.Name; };
+        $sortedCommonFiles = @(
+            Get-ChildItem -Path "$scanDir" -File -Depth 0 |
+                Where-Object { $_.Name -match "^$prefix.*-$escFileSuffix\.$escFileExtension`$"; } |
+                Where-Object { $EnableHidden -or (-not $_.Name.StartsWith('.')); } |
+                ForEach-Object { $_.Name; };
+        );
 
         # Find scoped files in the destination directory that meet the search criteria.
-        $sortedSelectedFiles = $FileScopes |
-            ForEach-Object { $_.Trim(); } |
-            Where-Object { $_.Length -gt 0; } |
-            ForEach-Object {
-                $escFileSelector = [regex]::Escape($_);
-                Get-ChildItem -Path "$scanDir" -File -Depth 0 |
-                    Where-Object { $_.Name -match "^$prefix.*-$escFileSuffix\.$escFileSelector\.$escFileExtension`$"; } |
-                    ForEach-Object { $_.Name; }
-                };
+        $sortedSelectedFiles = @(
+            $FileScopes |
+                ForEach-Object { $_.Trim(); } |
+                Where-Object { $_.Length -gt 0; } |
+                ForEach-Object {
+                    $escFileSelector = [regex]::Escape($_);
+                    Get-ChildItem -Path "$scanDir" -File -Depth 0 |
+                        Where-Object { $_.Name -match "^$prefix.*-$escFileSuffix\.$escFileSelector\.$escFileExtension`$"; } |
+                        Where-Object { $EnableHidden -or (-not $_.Name.StartsWith('.')); } |
+                        ForEach-Object { $_.Name; }
+                    } | ForEach-Object { $_; };
+        );
 
         # Concatenate the common files and the sorted selected files for the folder, they will be sorted later.
         $sortedFiles = @();
@@ -399,9 +364,11 @@ function Get-OrderedFileSet
             }
 
             # Sort found files.
-            $sortedFiles = $sortedFiles |
-                Sort-Object |
-                ForEach-Object { Join-Path -Path "$scanDir" -ChildPath "$_"; };
+            $sortedFiles = @(
+                $sortedFiles |
+                    Sort-Object |
+                    ForEach-Object { Join-Path -Path "$scanDir" -ChildPath "$_"; };
+            );
 
             # Add to all files.
             $allSortedFiles += $sortedFiles;
@@ -411,46 +378,62 @@ function Get-OrderedFileSet
     return $allSortedFiles;
 }
 
-function New-JSONC
+function Get-RecurseFileSet
 {
     <#
     .DESCRIPTION
-        Parses a JSON with comments, stripping them out and then returning a normal JSON object.
+        Looks for files that satisfy a given search criteria recursively in the given directories.
 
-        JSON files with comments usually have the '.jsonc' extension.
+    .PARAMETER Path
+        The path to the directories where to look for relevant files and paths to files to verify.
 
-        Based on: https://stackoverflow.com/a/57092959/21951997.
+    .PARAMETER FileExtension
+        File extension to capture.
 
-    .PARAMETER JSONCPath
-        The path to the file with JSON with comments.
+    .PARAMETER EnableHidden
+        Includes hidden files and folders in the results. Files and folders that start with a '.' are considered hidden.
 
     .OUTPUTS
-        A hashtable representing the JSON contents.
+        An array with paths to the relevant files found.
 
     .EXAMPLE
-        New-JSONC -JSONCPath "file.jsonc";
+        Get-RecurseFileSet -Path @("./folder", "./file.txt", "./folder2/file.txt") -FileExtension "txt";
     #>
     param(
         [Parameter(Mandatory = $true)]
+        [String[]]
+        $Path,
+        [Parameter(Mandatory = $true)]
         [String]
-        $JSONCPath
+        $FileExtension,
+        [Parameter(Mandatory = $false)]
+        [switch]
+        $EnableHidden = $false
     )
 
-    # TODO: ConvertFrom-JSON might already handle this already... double check.
+    # Get all files in the file paths provided that satisfy the criteria.
+    $allPathFiles = @(
+        $Path |
+            Where-Object { Test-Path -Path "$_" -PathType Leaf; } |
+            Where-Object { $EnableHidden -or (-not (Get-Item -Path "$_").Name.StartsWith('.')); } |
+            Where-Object { $_.EndsWith(".$FileExtension"); } |
+            ForEach-Object { (Get-Item -Path "$_").FullName; };
+    );
 
-    # Ensure path to the JSONC file exists.
-    if (-not (Test-Path "$JSONCPath"))
-    {
-        throw "Path '$JSONCPath' does not exist.";
-    }
+    # Get all files in the directory paths provided that satisfy the criteria.
+    $allPathFilesFromDirs = @(
+        $Path |
+            Where-Object { Test-Path -Path "$_" -PathType Container; } |
+            Where-Object { $EnableHidden -or (-not (Get-Item -Path "$_").Name.StartsWith('.')); } |
+            ForEach-Object {
+                Get-ChildItem -Path "$_" -File -Recurse |
+                    Where-Object { $EnableHidden -or (-not $_.Name.StartsWith('.')); } |
+                    Where-Object { $_.Name.EndsWith(".$FileExtension"); } |
+                    ForEach-Object { $_.FullName; };
+                } | ForEach-Object { "$_"; };
+    );
 
-    # Get contents and comment everything out.
-    $cnts = Get-Content -Path "$JSONCPath" -Raw;
-    $cnts = $cnts -replace '(?m)(?<=^([^"]|"[^"]*")*)//.*';
-    $cnts = $cnts -replace '(?ms)/\*.*?\*/';
-
-    # Return as hashtable object.
-    return $cnts | ConvertFrom-Json;
+    return $allPathFiles + $allPathFilesFromDirs;
 }
 
 function New-CompilationDatabase
@@ -495,7 +478,7 @@ function New-CompilationDatabase
             };
             "all_include_dirs" = @(
                 "absolute_path_to_include_dir_0",
-                "absolute_path_to_include_dir_0"
+                "absolute_path_to_include_dir_1"
             );
             "all_include_files" = @(
                 "absolute_path_to_header_file_0",
@@ -535,7 +518,7 @@ function New-CompilationDatabase
     $startTime = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds();
 
     # Parse JSON as a hashtable, and loop each item.
-    $compileCommands = New-JSONC $CompileCommandsJSON;
+    $compileCommands = Get-Content -Path "$CompileCommandsJSON" -Encoding "utf8" -Raw | ConvertFrom-Json;
     $parsed = @{
         "c_compiler" = $null;
         "cpp_compiler" = $null;
@@ -638,7 +621,7 @@ function New-CompilationDatabase
                 # Add elements to item.
                 $item.definitions.Add($definition);
 
-                # Add definitiosn to list of definitions if not already added.
+                # Add definitions to list of definitions if not already added.
                 if (-not ($definition -in $parsed.all_definitions))
                 {
                     $parsed.all_definitions.Add($definition);
@@ -703,7 +686,7 @@ function Remove-FromCompilationDatabase
     Write-Log "Removing entries with match '$($Regex)' from compilation database at '$($InputCompileCommandsJSON)'...";
 
     # Parse input compile commands as a hashtable, and loop each item.
-    $inputCompileCommands = New-JSONC $InputCompileCommandsJSON;
+    $inputCompileCommands = Get-Content -Path "$InputCompileCommandsJSON" -Encoding "utf8" -Raw | ConvertFrom-Json;
     $deletedEntries = @(); $keptEntries = @();
     foreach ($inputCmd in $inputCompileCommands)
     {
@@ -794,11 +777,9 @@ Export-ModuleMember Write-Log;
 Export-ModuleMember Write-StandardOutput;
 
 Export-ModuleMember New-SymbolicLink;
-Export-ModuleMember New-CopyItem;
 Export-ModuleMember New-TemporaryFolder;
 Export-ModuleMember Get-OrderedFileSet;
-
-Export-ModuleMember New-JSONC;
+Export-ModuleMember Get-RecurseFileSet;
 
 Export-ModuleMember New-CompilationDatabase;
 Export-ModuleMember Remove-FromCompilationDatabase;

@@ -5,11 +5,13 @@
 
 # [Initializations] ####################################################################################################
 
+# Make non-zero exit codes of applications behave with respect to 'ErrorActionPreference'.
+$PSNativeCommandUseErrorActionPreference = $true;
 # Stop script on first error found.
 $ErrorActionPreference = "Stop";
 
 # Imports.
-Import-Module "$PSScriptRoot/commons.psm1";
+Import-Module -Name (Join-Path -Path "$PSScriptRoot" -ChildPath "commons.psm1") -Force;
 
 # [Declarations] #######################################################################################################
 
@@ -137,7 +139,7 @@ function Start-CppCheck
         $fileFilterExpr += "--file-filter=$item";
     }
 
-    # Generate expressions for MISRA C;2012.
+    # Generate expressions for MISRA C:2012.
     $misraCmdArgs = @();
     if ($PSBoundParameters.ContainsKey("CppCheckC2012RulesFile"))
     {
@@ -376,64 +378,6 @@ function Start-ClangFormat
     Write-Log "Finished running clang-format, no errors found." "Success";
 }
 
-function Start-Doc8
-{
-    <#
-    .DESCRIPTION
-        Runs doc8 project wide reporting the errors and warnings to the standard output.
-
-    .PARAMETER Doc8Exe
-        Path to the 'clang-format' executable.
-
-    .PARAMETER ConfigFile
-        Path to the 'pyproject.toml' configuration file.
-
-    .PARAMETER Inputs
-        Array of directory and/or file inputs to recursively collect '.rst' files for analysis.
-
-    .EXAMPLE
-        Start-Doc8 -Doc8Exe "doc8" -ConfigFile "pyproject.toml" -Inputs @("file.rst", "dir")
-    #>
-    param (
-        [Parameter(Mandatory = $true)]
-        [ValidateNotNullOrEmpty()]
-        [String]
-        $Doc8Exe,
-        [Parameter(Mandatory = $true)]
-        [ValidateNotNullOrEmpty()]
-        [String]
-        $ConfigFile,
-        [Parameter(Mandatory = $true)]
-        [ValidateNotNullOrEmpty()]
-        [String[]]
-        $Inputs
-    )
-
-    $files = @();
-    foreach ($input in $Inputs)
-    {
-        if (Test-Path "$input")
-        {
-            if ((Get-Item "$input") -is [System.IO.DirectoryInfo])
-            {
-                Get-ChildItem -Path "doc" -Include "*.rst" -Force -Recurse | ForEach-Object { $files += $_.FullName };
-            }
-            elseif ($input.EndsWith(".rst"))
-            {
-                $files += "$input";
-            }
-        }
-    }
-
-    Write-Log "Running doc8...";
-    & "$Doc8Exe" --config="$ConfigFile" --verbose $files;
-    if ($LASTEXITCODE -ne 0)
-    {
-        throw "doc8 finished with error '$LASTEXITCODE', check output for details.";
-    }
-    Write-Log "Finished running doc8, no errors found." "Success";
-}
-
 function Start-Pylint
 {
     <#
@@ -590,11 +534,130 @@ function Start-Black
     Write-Log "Finished running black, no errors found." "Success";
 }
 
+function Start-Doc8
+{
+    <#
+    .DESCRIPTION
+        Runs doc8 project wide reporting the errors and warnings to the standard output.
+
+    .PARAMETER Doc8Exe
+        Path to the 'clang-format' executable.
+
+    .PARAMETER ConfigFile
+        Path to the 'pyproject.toml' configuration file.
+
+    .PARAMETER Inputs
+        Array of directory and/or file inputs to recursively collect '.rst' files for analysis.
+
+    .EXAMPLE
+        Start-Doc8 -Doc8Exe "doc8" -ConfigFile "pyproject.toml" -Inputs @("file.rst", "dir")
+    #>
+    param (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [String]
+        $Doc8Exe,
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [String]
+        $ConfigFile,
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [String[]]
+        $Inputs
+    )
+
+    $files = @();
+    foreach ($input in $Inputs)
+    {
+        if (Test-Path "$input")
+        {
+            if ((Get-Item "$input") -is [System.IO.DirectoryInfo])
+            {
+                Get-ChildItem -Path "doc" -Include "*.rst" -Force -Recurse | ForEach-Object { $files += $_.FullName };
+            }
+            elseif ($input.EndsWith(".rst"))
+            {
+                $files += "$input";
+            }
+        }
+    }
+
+    Write-Log "Running doc8...";
+    & "$Doc8Exe" --config="$ConfigFile" --verbose $files;
+    if ($LASTEXITCODE -ne 0)
+    {
+        throw "doc8 finished with error '$LASTEXITCODE', check output for details.";
+    }
+    Write-Log "Finished running doc8, no errors found." "Success";
+}
+
+function Start-PSScriptAnalyzer
+{
+    <#
+    .DESCRIPTION
+        Runs PowerShell Script Analyzer linter project wide reporting the errors and warnings to the standard output.
+
+    .PARAMETER ConfigFile
+        Path to the PowerShell Script Analyzer data file with the configuration settings.
+
+    .PARAMETER Path
+        Paths to directories and files where to look for PowerShell Core scripts (.ps1), PowerShell Core modules (.psm1)
+        and PowerShell Core data files (.psd1).
+
+    .EXAMPLE
+        Start-PSScriptAnalyzer -ConfigFile "PSScriptAnalyzer.psd1" -Path @("./dir", "./dir/file.psm1");
+    #>
+    param (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [String]
+        $ConfigFile,
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [String[]]
+        $Path
+    )
+
+    Write-Log "Running PowerShell Script Analyzer linter...";
+
+    # Collect PowerShell Core modules.
+    $allModules = Get-RecurseFileSet -Path $Path -FileExtension "psm1";
+    # Collect PowerShell Core script files.
+    $allScripts = Get-RecurseFileSet -Path $Path -FileExtension "ps1";
+    # Collect PowerShell Core data files.
+    $allData = Get-RecurseFileSet -Path $Path -FileExtension "psd1";
+
+    # Ensure the module is imported in environment.
+    Import-Module -Name 'PSScriptAnalyzer' -Function 'Invoke-ScriptAnalyzer' -Force;
+
+    # Run on specified files and directories, and collect all errors before exitting.
+    $totalErrorCount = 0;
+    ($allModules + $allScripts + $allData) | ForEach-Object {
+        # Perform analysis of file and capture and print results.
+        Write-Log "Analyzing '$_'...";
+        $results = Invoke-ScriptAnalyzer -Path "$_" -Settings "$ConfigFile";
+        $results | Format-List * | Write-Output;
+        # Report number of errors found and add them to the total.
+        if ($results.Length -gt 0) { Write-Log "$($results.Length) errors for '$_'..." "Error"; }
+        $totalErrorCount += $results.Length;
+    };
+
+    # If errors were found, then throw exception.
+    if ($totalErrorCount -gt 0) { throw "PowerShell Script Analyzer linter found $totalErrorCount errors."; }
+
+    Write-Log "Executed PowerShell Script Analyzer linter, no errors found." "Success";
+}
+
 # [Execution] ##########################################################################################################
 Export-ModuleMember Start-CppCheck;
 Export-ModuleMember Start-ClangTidy;
 Export-ModuleMember Start-ClangFormat;
-Export-ModuleMember Start-Doc8;
+
 Export-ModuleMember Start-Pylint;
 Export-ModuleMember Start-Pyright;
 Export-ModuleMember Start-Black;
+Export-ModuleMember Start-Doc8;
+
+Export-ModuleMember Start-PSScriptAnalyzer;
+Export-ModuleMember Start-ShellCheck;
