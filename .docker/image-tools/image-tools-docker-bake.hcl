@@ -13,10 +13,10 @@ variable "IMAGE_TOOLS_VERSION" {
 ## Targets #############################################################################################################
 target "image-tools" {
     inherits = ["target-base"]
-    dockerfile = "./.devcontainer/100-image-tools/image-tools.Dockerfile"
+    dockerfile = "./.docker/image-tools/image-tools.Dockerfile"
     description = "Image with generic tools and scripts to provision dependencies in other images."
     contexts = {
-        host-image-tools-dir = "./.devcontainer/100-image-tools"
+        host-image-tools-dir = "./.docker/image-tools"
     }
     tags = [
         "${BAKE_IMAGE_REGISTRY}/image-tools:${IMAGE_TOOLS_VERSION}",

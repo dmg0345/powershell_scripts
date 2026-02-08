@@ -55,7 +55,7 @@ variable "IMAGE_BASE_DEBIAN_12_SVR_S6_OVERLAY_VERSION" {
 ## Targets #############################################################################################################
 target "image-base-debian-13-usv" {
     inherits = ["target-base"]
-    dockerfile = "./.devcontainer/200-image-base/image-base-debian.Dockerfile"
+    dockerfile = "./.docker/image-base/image-base-debian.Dockerfile"
     description = "Image base with Debian 13 and no supervisor for ephemeral / one-shot workflows."
     target = "debian-13-usv-image"
     args = {
@@ -70,7 +70,7 @@ target "image-base-debian-13-usv" {
 
 target "image-base-debian-12-usv" {
     inherits = ["target-base"]
-    dockerfile = "./.devcontainer/200-image-base/image-base-debian.Dockerfile"
+    dockerfile = "./.docker/image-base/image-base-debian.Dockerfile"
     description = "Image base with Debian 12 and no supervisor for ephemeral / one-shot workflows."
     target = "debian-12-usv-image"
     args = {

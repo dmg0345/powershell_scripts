@@ -37,7 +37,7 @@ profiles:
         ssh-sign-key-file: "${GIT_SSH_SIGN_KEY_FILE}"
       github:
         username: "${GITHUB_USERNAME}"
-        ssh-auth-key-file: strenv(GITHUB_SSH_AUTH_KEY_FILE)
+        ssh-auth-key-file: "${GITHUB_SSH_AUTH_KEY_FILE}"
       vnc-server:
         password: "012345"
         geometry: "1920x1080"

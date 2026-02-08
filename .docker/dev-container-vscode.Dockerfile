@@ -11,7 +11,7 @@ RUN vscode-deploy-code-server.sh "latest";                                      
     ## PowerShell related extensions ###################################################################################
     code-server --install-extension "ms-vscode.powershell@2025.4.0";                                                   \
     ## Bash related extensions #########################################################################################
-    code-server --install-extension "timonwong.shellcheck@0.38.6";                                                     \
+    code-server --install-extension "mkhl.shfmt@1.5.1";                                                                \
     ## Git and Github related extensions ###############################################################################
     code-server --install-extension "phil294.git-log--graph@0.1.34";                                                   \
     code-server --install-extension "github.vscode-github-actions@0.30.0";                                             \

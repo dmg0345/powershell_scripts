@@ -56,11 +56,11 @@ variable "DEV_CONTAINER_BASE_DEBIAN_12_PWSH_VERSION" {
 ## Targets #############################################################################################################
 target "dev-container-base-debian-13-cli" {
     inherits = ["target-base"]
-    dockerfile = "./.devcontainer/210-dev-container-base/dev-container-base-debian.Dockerfile"
+    dockerfile = "./.docker/dev-container-base/dev-container-base-debian.Dockerfile"
     description = "Dev Container base image with Debian 13, PowerShell Core shell and other CLI utilities."
     target = "debian-13-cli-image"
     contexts = {
-        host-dev-container-base-dir = "./.devcontainer/210-dev-container-base"
+        host-dev-container-base-dir = "./.docker/dev-container-base"
     }
     args = {
         BASE_IMAGE = "${DEV_CONTAINER_BASE_DEBIAN_13_BASE_IMAGE}"
@@ -75,11 +75,11 @@ target "dev-container-base-debian-13-cli" {
 
 target "dev-container-base-debian-12-cli" {
     inherits = ["target-base"]
-    dockerfile = "./.devcontainer/210-dev-container-base/dev-container-base-debian.Dockerfile"
+    dockerfile = "./.docker/dev-container-base/dev-container-base-debian.Dockerfile"
     description = "Dev Container base image with Debian 12, PowerShell Core shell and other CLI utilities."
     target = "debian-12-cli-image"
     contexts = {
-        host-dev-container-base-dir = "./.devcontainer/210-dev-container-base"
+        host-dev-container-base-dir = "./.docker/dev-container-base"
     }
     args = {
         BASE_IMAGE = "${DEV_CONTAINER_BASE_DEBIAN_12_BASE_IMAGE}"
