@@ -1,6 +1,6 @@
 {
     "containerUser": "devuser",
-    "dockerComposeFile": "./.manage-env/local-deps/pwsh-scripts/configs/docker-compose/010-vscode/000-dev-container-docker-compose.vscode-dev-container.yml",
+    "dockerComposeFile": "./.manage-env/local-deps/pwsh-scripts/configs/docker-compose/010-vscode/000-dev-container-docker-compose.vscode.yml",
     "initializeCommand": {},
     "mounts": [],
     "onCreateCommand": {},

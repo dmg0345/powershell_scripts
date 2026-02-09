@@ -39,7 +39,7 @@ cd "$DEV_CONTAINER_VOLUME_DIR";
 # Check if cloned project already exists.
 if [[ ! -d "./powershell_scripts" ]]; then
     # Clone project. and create symbolic link to workspace directory.
-    git clone --recurse-submodules git@github.com:dmg0345/powershell_scripts.git;
+    git clone --recurse-submodules git@github.com:dmg0345/powershell_scripts.git --branch feature/bootstrap;
     ln -sf "/dev-container-volume/powershell_scripts" "/dev-container-volume/vscode-workspace";
     # Initialize management environment in project.
     cd "./powershell_scripts";
