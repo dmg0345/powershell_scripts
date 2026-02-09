@@ -6,7 +6,7 @@
 // Do not edit manually — changes will be overwritten.
 {
     // Point towards Docker Compose file with the 'dev-container' sentinel service to attach to.
-    "dockerComposeFile": "./.manage-env/local-deps/pwsh-scripts/configs/docker-compose/010-vscode/000-dev-container-docker-compose.vscode.yml",
+    "dockerComposeFile": "${localWorkspaceFolder}/.manage-env/local-deps/pwsh-scripts/configs/docker-compose/010-vscode/000-dev-container-docker-compose.vscode.yml",
     "service": "dev-container",
     "workspaceFolder": "/dev-container-volume/vscode-workspace",
     // Disable all actions from the devcontainer, rely on Docker Bake and Docker Compose files.

@@ -2,9 +2,17 @@
 //   - https://marketplace.visualstudio.com/items?itemName=mkhl.shfmt
 // Do not edit manually — changes will be overwritten.
 {
-    // Point towards the 'shfmt' executable and specify formatting arguments.
-    "shfmt.executablePath": "git",
-    "shfmt.executableArgs": [],
+    // Point towards the 'shfmt' executable in PATH and specify formatting arguments, for details refer to:
+    //   - https://manpages.debian.org/testing/shfmt/shfmt.1.en.html#Printer_flags
+    "shfmt.executablePath": "shfmt",
+    "shfmt.executableArgs": [
+        "-ln=bash",
+        "-i=4",
+        "-bn",
+        "-ci",
+        "-sr",
+        "-fn"
+    ],
     // Keep setting always true for backwards compatibility.
     "shfmt.formatIgnored": true
 }
